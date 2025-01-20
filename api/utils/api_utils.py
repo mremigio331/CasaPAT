@@ -1,12 +1,7 @@
 import boto3
 import logging
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
-import logging
-from decimal import Decimal
+from fastapi import Depends, HTTPException
 from boto3.dynamodb.conditions import Key
-import logging
-import json
 
 logger = logging.getLogger("pat_api")
 

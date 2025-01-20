@@ -5,9 +5,7 @@ from utils.api_utils import get_table
 from utils.door_utils import get_latest_door_info
 from pydantic import BaseModel, Field
 
-# Configure logger
 logger = logging.getLogger("pat_api")
-
 router = APIRouter()
 
 
@@ -45,7 +43,7 @@ async def get_latest_info(device_id: str, table=Depends(get_table)):
         return JSONResponse(content={"latest_info": latest_info}, status_code=200)
 
     except HTTPException as e:
-        raise e  # Re-raise expected HTTPExceptions
+        raise e
 
     except Exception as e:
         logger.error(f"Error retrieving latest info: {e}")

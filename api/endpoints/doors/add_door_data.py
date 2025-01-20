@@ -6,15 +6,11 @@ import json
 from fastapi.responses import JSONResponse
 from utils.api_utils import get_table
 
-# Configure logger
 logger = logging.getLogger("pat_api")
-
 router = APIRouter()
-
 DOOR_OPTIONS = ["OPEN", "CLOSED"]
 
 
-# Pydantic model to validate input data
 class DeviceData(BaseModel):
     DeviceID: str = Field(..., example="default_device")
     Timestamp: str = Field(..., example="2024-01-19T12:00:00Z")
@@ -62,15 +58,14 @@ async def add_data(
     try:
         battery_value = Decimal(str(Battery))
     except Exception:
-        logger.warning(f"Invalid Battery value provided: {data.Battery}")
+        logger.warning(f"Invalid Battery value provided: {Battery}")
         raise HTTPException(
             status_code=400, detail="Battery value must be a valid number."
         )
 
-    # Prepare data for DynamoDB
     clean_up_data = {
-        "DeviceID": f"DEVICE#{DeviceID}",  # Ensure the key names match table schema
-        "Timestamp": f"RECORD#{Timestamp}",  # Fixed case sensitivity issue
+        "DeviceID": f"DEVICE#{DeviceID}",
+        "Timestamp": f"RECORD#{Timestamp}",
         "DeviceType": "DoorSensor",
         "DoorStatus": CurrentState,
         "Battery": battery_value,

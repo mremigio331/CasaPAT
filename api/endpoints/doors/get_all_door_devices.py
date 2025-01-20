@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 import logging
-from utils.api_utils import get_dynamodb_table, unique_device_ids, get_table
+from utils.api_utils import unique_device_ids, get_table
 
-# Configure logger
 logger = logging.getLogger("pat_api")
-
 router = APIRouter()
 
 
