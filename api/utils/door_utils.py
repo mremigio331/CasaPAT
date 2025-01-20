@@ -45,9 +45,7 @@ def format_all_door_info(table, device_id: str):
                     "device_id": item.get("DeviceID", "").split("#")[1],
                     "timestamp": item.get("Timestamp", "").split("#")[1],
                     "current_state": item.get("DoorStatus"),
-                    "battery": float(
-                        item.get("Battery", 0.0)
-                    ),
+                    "battery": float(item.get("Battery", 0.0)),
                 }
             )
         return formatted_info

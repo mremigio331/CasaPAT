@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from decimal import Decimal
 import logging
@@ -12,11 +12,11 @@ DOOR_OPTIONS = ["OPEN", "CLOSED"]
 
 
 class DeviceData(BaseModel):
-    DeviceID: str = Field(..., example="default_device")
-    Timestamp: str = Field(..., example="2024-01-19T12:00:00Z")
-    CurrentState: str = Field(..., example="OPEN")
-    Battery: str = Field(
-        ..., example="98.5", description="Battery level as a numeric string"
+    device_id: str = Field(..., example="test_device")
+    timestamp: str = Field(..., example="2024-01-19T12:00:00Z")
+    door_status: str = Field(..., example="OPEN")
+    battery: float = Field(
+        ..., example=98.5, description="Battery level as a numeric value"
     )
 
 
@@ -26,48 +26,37 @@ class DeviceData(BaseModel):
     response_description="Add new data to DynamoDB",
 )
 async def add_data(
-    DeviceID: str = Query(
-        ..., example="device123", description="Unique identifier for the device"
-    ),
-    Timestamp: str = Query(
-        ..., example="2024-01-19T12:00:00Z", description="ISO8601 timestamp"
-    ),
-    CurrentState: str = Query(
-        ..., example="OPEN", description="Current door status (OPEN/CLOSED)"
-    ),
-    Battery: float = Query(
-        ..., example=98.5, description="Battery level as a numeric value"
-    ),
+    data: DeviceData,
     table=Depends(get_table),
 ):
     """Add new door sensor data to DynamoDB."""
     logger.info("Called /doors/add_data endpoint.")
 
-    if DeviceID == "default_device":
-        logger.warning("Invalid DeviceID provided: default_device")
+    if data.device_id == "default_device":
+        logger.warning("Invalid device_id provided: default_device")
         raise HTTPException(
-            status_code=400, detail="DeviceID cannot be 'default_device'."
+            status_code=400, detail="device_id cannot be 'default_device'."
         )
 
-    if CurrentState not in DOOR_OPTIONS:
-        logger.warning(f"Invalid CurrentState provided: {CurrentState}")
+    if data.door_status not in DOOR_OPTIONS:
+        logger.warning(f"Invalid door_status provided: {data.door_status}")
         raise HTTPException(
-            status_code=400, detail="CurrentState must be 'OPEN' or 'CLOSED'."
+            status_code=400, detail="door_status must be 'OPEN' or 'CLOSED'."
         )
 
     try:
-        battery_value = Decimal(str(Battery))
+        battery_value = Decimal(str(data.battery))
     except Exception:
-        logger.warning(f"Invalid Battery value provided: {Battery}")
+        logger.warning(f"Invalid battery value provided: {data.battery}")
         raise HTTPException(
-            status_code=400, detail="Battery value must be a valid number."
+            status_code=400, detail="battery value must be a valid number."
         )
 
     clean_up_data = {
-        "DeviceID": f"DEVICE#{DeviceID}",
-        "Timestamp": f"RECORD#{Timestamp}",
+        "DeviceID": f"DEVICE#{data.device_id}",
+        "Timestamp": f"RECORD#{data.timestamp}",
         "DeviceType": "DoorSensor",
-        "DoorStatus": CurrentState,
+        "DoorStatus": data.door_status,
         "Battery": battery_value,
     }
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -10,7 +10,6 @@ import uvicorn
 import sys
 
 sys.dont_write_bytecode = True
-
 
 # Setup logging directory and file
 LOG_DIR = "/var/log/pat"
@@ -40,6 +39,32 @@ app = FastAPI(
     description="API for PAT with DynamoDB integration",
     version="1.0.0",
 )
+
+
+@app.middleware("http")
+async def log_request_info(request: Request, call_next):
+    client_host = request.client.host  # Get the requester's hostname/IP
+    request_method = request.method
+    request_url = request.url.path
+
+    # Read and decode request body safely
+    try:
+        body = await request.body()
+        payload = body.decode() if body else "{}"  # Handle empty body gracefully
+    except Exception as e:
+        payload = f"Error reading body: {e}"
+
+    logger.info(
+        f"Incoming request from {client_host}: {request_method} {request_url}, "
+        f"Payload: {payload}"
+    )
+
+    # Create a new request object with the body to avoid reading issues
+    request = Request(request.scope, receive=lambda: body)
+
+    response = await call_next(request)  # Pass request to the next middleware/handler
+    return response
+
 
 # Configure CORS (Open for all origins)
 app.add_middleware(
