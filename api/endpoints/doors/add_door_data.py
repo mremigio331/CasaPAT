@@ -1,24 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
 from decimal import Decimal
 import logging
 import json
 from fastapi.responses import JSONResponse
 from utils.api_utils import get_dynamodb_table
 from constants.database import DATA_TABLE
+from pydantic_models.door_models import AddDoorDeviceData
 
 logger = logging.getLogger("pat_api")
 router = APIRouter()
 DOOR_OPTIONS = ["OPEN", "CLOSED"]
-
-
-class DeviceData(BaseModel):
-    device_id: str = Field(..., example="test_device")
-    timestamp: str = Field(..., example="2024-01-19T12:00:00Z")
-    door_status: str = Field(..., example="OPEN")
-    battery: float = Field(
-        ..., example=98.5, description="Battery level as a numeric value"
-    )
 
 
 @router.post(
@@ -27,7 +18,7 @@ class DeviceData(BaseModel):
     response_description="Add new data to DynamoDB",
 )
 async def add_data(
-    data: DeviceData,
+    data: AddDoorDeviceData,
     table=Depends(lambda: get_dynamodb_table(DATA_TABLE)),
 ):
     """Add new door sensor data to DynamoDB."""

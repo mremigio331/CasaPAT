@@ -4,6 +4,7 @@ from endpoints.doors import (
     get_all_door_devices,
     get_latest_door_info,
     get_all_door_info,
+    register_door_device,
 )
 
 
@@ -14,6 +15,7 @@ def get_all_routes(app):
 
     # Door specific APIs
     app.include_router(add_door_data.router, prefix="/doors", tags=["Doors"])
+    app.include_router(register_door_device.router, prefix="/doors", tags=["Doors"])
     app.include_router(get_all_door_devices.router, prefix="/doors", tags=["Doors"])
     app.include_router(get_latest_door_info.router, prefix="/doors", tags=["Doors"])
     app.include_router(get_all_door_info.router, prefix="/doors", tags=["Doors"])

@@ -28,10 +28,25 @@ def setup_logging():
     except Exception as e:
         raise SystemExit(f"Critical error: Unable to create log directory: {e}")
 
-    handler = TimedRotatingFileHandler(LOG_FILE_API, when="midnight", backupCount=7)
-    handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
-    handler.suffix = "%Y-%m-%d"
-    logger.addHandler(handler)
+    # File Handler
+    file_handler = TimedRotatingFileHandler(
+        LOG_FILE_API, when="midnight", backupCount=7
+    )
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    )
+    file_handler.suffix = "%Y-%m-%d"
+
+    # Console Handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    )
+
+    # Add handlers if not already present
+    if not logger.hasHandlers():
+        logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
 
 
 setup_logging()

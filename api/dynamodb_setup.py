@@ -101,7 +101,7 @@ def start_dynamodb_local():
     logger.info("DynamoDB Local started successfully.")
 
 
-def initialize_dynamodb(profile_name=None, use_local=False):
+def initialize_dynamodb(profile_name=None, use_local=True):
     """Initialize DynamoDB connection."""
     try:
         if use_local:
@@ -173,7 +173,7 @@ def ensure_data_table_exists(dynamodb):
 
 
 def ensure_devices_table_exists(dynamodb):
-    """Ensure the PAT devices table exists."""
+    """Ensure the PAT devices table exists with updated schema and GSI."""
     try:
         table = dynamodb.Table(DEVICE_TABLE)
         table.load()
@@ -186,16 +186,55 @@ def ensure_devices_table_exists(dynamodb):
                 DEVICE_TABLE,
                 [
                     {"AttributeName": "DeviceID", "KeyType": "HASH"},
-                    {"AttributeName": "DeviceType", "KeyType": "RANGE"},
+                    {"AttributeName": "DeviceName", "KeyType": "RANGE"},
                 ],
                 [
                     {"AttributeName": "DeviceID", "AttributeType": "S"},
-                    {"AttributeName": "DeviceType", "AttributeType": "S"},
+                    {"AttributeName": "DeviceName", "AttributeType": "S"},
                 ],
             )
         else:
             logger.error(f"Error accessing table: {e}")
             raise
+
+
+def delete_dynamodb_table(table_name, use_local=True):
+    """
+    Delete a DynamoDB table by name.
+
+    :param table_name: The name of the DynamoDB table to delete.
+    :param use_local: If True, connects to local DynamoDB, else AWS DynamoDB.
+    """
+    try:
+        if use_local:
+            dynamodb = boto3.resource(
+                "dynamodb",
+                region_name="us-west-2",
+                endpoint_url="http://localhost:8000",
+                aws_access_key_id="fakeMyKeyId",
+                aws_secret_access_key="fakeSecretAccessKey",
+            )
+        else:
+            dynamodb = boto3.resource("dynamodb", region_name="us-west-2")
+
+        table = dynamodb.Table(table_name)
+
+        logger.info(f"Attempting to delete table '{table_name}'...")
+
+        table.delete()
+        table.wait_until_not_exists()
+
+        logger.info(f"Table '{table_name}' deleted successfully.")
+
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ResourceNotFoundException":
+            logger.warning(f"Table '{table_name}' does not exist.")
+        else:
+            logger.error(f"Error deleting table '{table_name}': {e}")
+            raise
+    except Exception as e:
+        logger.error(f"Unexpected error deleting table '{table_name}': {e}")
+        raise
 
 
 def setup_dynamodb(profile_name=None, use_local=True):

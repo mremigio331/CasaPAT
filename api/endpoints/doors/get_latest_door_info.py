@@ -3,15 +3,10 @@ from fastapi.responses import JSONResponse
 import logging
 from utils.api_utils import get_dynamodb_table
 from utils.door_utils import get_latest_door_info
-from pydantic import BaseModel, Field
 from constants.database import DATA_TABLE
 
 logger = logging.getLogger("pat_api")
 router = APIRouter()
-
-
-class Device(BaseModel):
-    device_id: str = Field(..., example="default_device")
 
 
 @router.get(
