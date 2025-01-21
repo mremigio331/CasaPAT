@@ -2,15 +2,27 @@ import boto3
 import logging
 from fastapi import Depends, HTTPException
 from boto3.dynamodb.conditions import Key
+from typing import Literal
 
 logger = logging.getLogger("pat_api")
 
 
-def get_dynamodb_table():
-    """Returns the DynamoDB table instance."""
-    dynamodb = boto3.resource("dynamodb")
-    table = dynamodb.Table("YourTableName")  # Replace with your actual table name
-    return table
+def get_dynamodb_table(table_name: Literal["PATData", "PATDevices"]):
+    """Returns the specified DynamoDB table instance connected to the local environment."""
+
+    dynamodb = boto3.resource(
+        "dynamodb",
+        region_name="us-west-2",
+        endpoint_url="http://localhost:8000",
+        aws_access_key_id="fakeAccessKey",
+        aws_secret_access_key="fakeSecretKey",
+    )
+
+    try:
+        table = dynamodb.Table(table_name)
+        return table
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error accessing table: {e}")
 
 
 def get_table(table=Depends(get_dynamodb_table)):

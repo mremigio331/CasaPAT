@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 import logging
-from utils.api_utils import get_table
+from utils.api_utils import get_dynamodb_table
 from utils.door_utils import format_all_door_info
 from pydantic import BaseModel, Field
+from constants.database import DATA_TABLE
 
 logger = logging.getLogger("pat_api")
 router = APIRouter()
@@ -18,7 +19,10 @@ class Device(BaseModel):
     summary="Get All Info",
     response_description="Getting all info for a specific device",
 )
-async def get_all_door_info(device_id: str, table=Depends(get_table)):
+async def get_all_door_info(
+    device_id: str,
+    table=Depends(lambda: get_dynamodb_table(DATA_TABLE)),
+):
     if not table:
         logger.error("DynamoDB connection is unavailable.")
         raise HTTPException(status_code=500, detail="DynamoDB is unavailable")

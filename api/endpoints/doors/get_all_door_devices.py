@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 import logging
-from utils.api_utils import unique_device_ids, get_table
+from utils.api_utils import unique_device_ids, get_dynamodb_table
+from constants.database import DATA_TABLE
 
 logger = logging.getLogger("pat_api")
 router = APIRouter()
@@ -12,7 +13,9 @@ router = APIRouter()
     summary="Get All Door Devices",
     response_description="Getting all door devices",
 )
-async def get_all_door_devices(table=Depends(get_table)):
+async def get_all_door_devices(
+    table=Depends(lambda: get_dynamodb_table(DATA_TABLE)),
+):
     if not table:
         logger.error("DynamoDB connection is unavailable.")
         return JSONResponse(

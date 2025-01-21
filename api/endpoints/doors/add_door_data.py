@@ -4,7 +4,8 @@ from decimal import Decimal
 import logging
 import json
 from fastapi.responses import JSONResponse
-from utils.api_utils import get_table
+from utils.api_utils import get_dynamodb_table
+from constants.database import DATA_TABLE
 
 logger = logging.getLogger("pat_api")
 router = APIRouter()
@@ -27,7 +28,7 @@ class DeviceData(BaseModel):
 )
 async def add_data(
     data: DeviceData,
-    table=Depends(get_table),
+    table=Depends(lambda: get_dynamodb_table(DATA_TABLE)),
 ):
     """Add new door sensor data to DynamoDB."""
     logger.info("Called /doors/add_data endpoint.")
