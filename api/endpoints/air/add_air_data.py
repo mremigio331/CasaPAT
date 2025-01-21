@@ -5,20 +5,19 @@ import json
 from fastapi.responses import JSONResponse
 from utils.api_utils import get_dynamodb_table, get_device_info
 from constants.database import DATA_TABLE, DEVICE_TABLE
-from constants.door import DOOR_OPTIONS
-from pydantic_models.door_models import AddDoorDeviceData
+from pydantic_models.air_models import AddAirDeviceData
 
 logger = logging.getLogger("pat_api")
 router = APIRouter()
 
 
 @router.post(
-    "/add_data/door_status",
-    summary="Add Door Data",
-    response_description="Add new data to DynamoDB",
+    "/add_data",
+    summary="Add Air Data",
+    response_description="Add updated air quality data",
 )
-async def add_door_data(
-    data: AddDoorDeviceData,
+async def add_air_data(
+    data: AddAirDeviceData,
     data_table=Depends(lambda: get_dynamodb_table(DATA_TABLE)),
     device_table=Depends(lambda: get_dynamodb_table(DEVICE_TABLE)),
 ):
@@ -29,12 +28,6 @@ async def add_door_data(
         logger.warning("Invalid device_name provided: default_device")
         raise HTTPException(
             status_code=400, detail="device_name cannot be 'default_device'."
-        )
-
-    if data.door_status not in DOOR_OPTIONS:
-        logger.warning(f"Invalid door_status provided: {data.door_status}")
-        raise HTTPException(
-            status_code=400, detail="door_status must be 'OPEN' or 'CLOSED'."
         )
 
     try:
@@ -55,21 +48,20 @@ async def add_door_data(
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        battery_value = Decimal(str(data.battery))
-    except Exception:
-        logger.warning(f"Invalid battery value provided: {data.battery}")
-        raise HTTPException(
-            status_code=400, detail="battery value must be a valid number."
-        )
+        logger.info(f"Cleaning up data: {json.dumps(data.dict(), default=str)}")
+        clean_up_data = {
+            "DeviceID": device_info.get("DeviceID"),
+            "DeviceName": data.device_name,
+            "Timestamp": data.timestamp,
+            "PM25": Decimal(str(data.pm25)),
+            "PM10": Decimal(str(data.pm10)),
+        }
 
-    clean_up_data = {
-        "DeviceID": device_info.get("DeviceID"),
-        "DeviceName": data.device_name,
-        "Timestamp": f"RECORD#{data.timestamp}",
-        "DeviceType": "DoorSensor",
-        "DoorStatus": data.door_status,
-        "Battery": battery_value,
-    }
+    except Exception as e:
+        logger.error(f"Error converting floats to decimals: {e}")
+        raise HTTPException(
+            status_code=500, detail="Internal server error while converting floats"
+        )
 
     try:
         logger.info(
