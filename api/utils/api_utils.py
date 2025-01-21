@@ -1,8 +1,7 @@
 import boto3
 import logging
 from fastapi import Depends, HTTPException
-from boto3.dynamodb.conditions import Key
-from botocore.exceptions import ClientError
+from boto3.dynamodb.conditions import Key, Attr
 
 from typing import Literal
 import random
@@ -102,54 +101,58 @@ def get_latest_info(table, device_id):
         raise
 
 
-def get_all_info(table, device_id):
-    """Fetch all entries for a specific device."""
+def get_device_info(table, device_name):
+    """Fetch all entries for a specific device from the DynamoDB table."""
     try:
-        response = table.query(
-            KeyConditionExpression=Key("DeviceID").eq(f"DEVICE#{device_id}"),
-            ScanIndexForward=False,
-        )
-        if "Items" in response and response["Items"]:
+        logging.info(f"Fetching entries for device name: {device_name}")
+        items = []
+        last_evaluated_key = None
+
+        while True:
+            # Scan the table with filter expression
+            scan_params = {"FilterExpression": Attr("DeviceName").eq(device_name)}
+            if last_evaluated_key:
+                scan_params["ExclusiveStartKey"] = last_evaluated_key
+
+            response = table.scan(**scan_params)
+
+            # Append matching items
+            items.extend(response.get("Items", []))
+
+            # Check if there's more data to be scanned
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
+
+        if len(items) == 1:
+            logging.info(f"Found the following info for {device_name}: {items[0]}")
+            return items[0]
+        elif len(items) > 1:
+            logging.warning(f"Multiple entries found for {device_name}: {items}")
+            return items[0]
+        else:
+            logging.warning(f"No entries found for device name: {device_name}")
+            return []
+
+    except Exception as e:
+        logging.error(f"Error fetching all info for device name {device_name}: {e}")
+        raise
+
+
+def get_all_info(table, device_id):
+    """Fetch all entries for a specific device from the DynamoDB table."""
+    try:
+        response = table.scan(FilterExpression=Attr("DeviceID").eq(device_id))
+        if response.get("Items"):
             return response["Items"]
         else:
-            logging.info(f"No entries found for device {device_id}.")
-            return None
+            logging.warning(f"No entries found for device ID: {device_id}")
+            return []
     except Exception as e:
-        logging.error(f"Error fetching all info for device {device_id}: {e}")
+        logging.error(f"Error fetching all info for device ID {device_id}: {e}")
         raise
 
 
 def generate_device_id():
     """Generate a random 8-character alphanumeric device ID."""
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
-
-
-def add_device(table, device_name, device_type):
-    """Add a new device to the DynamoDB table."""
-    try:
-        device_id = generate_device_id()
-        logger.info(f"Generated new device ID: {device_id} for device {device_name}")
-
-        item = {
-            "DeviceID": f"DEVICE#{device_id}",
-            "DeviceName": device_name,
-            "DeviceType": device_type,
-        }
-        logger.info(f"Adding item to DynamoDB: {item}")
-
-        response = table.put_item(Item=item)
-        logger.info(f"DynamoDB put_item response: {response}")
-
-        logger.info(
-            f"Added new device with ID {device_id} and name {device_name} to table."
-        )
-        return device_id
-
-    except ClientError as e:
-        logger.error(
-            f"ClientError adding new device {device_name} to table: {e.response['Error']['Message']}"
-        )
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error adding new device {device_name} to table: {e}")
-        raise

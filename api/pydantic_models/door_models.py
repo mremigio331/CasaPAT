@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class AddDoorDeviceData(BaseModel):
-    device_id: str = Field(..., example="test_device")
+    device_name: str = Field(..., example="test_device")
     timestamp: str = Field(..., example="2024-01-19T12:00:00Z")
     door_status: str = Field(..., example="OPEN")
     battery: float = Field(
@@ -11,4 +11,4 @@ class AddDoorDeviceData(BaseModel):
 
 
 class DoorDevice(BaseModel):
-    device_name: str = Field(..., example="Test Device")
+    device_name: str = Field(..., example="test_device")

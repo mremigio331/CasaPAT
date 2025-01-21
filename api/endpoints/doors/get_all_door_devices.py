@@ -5,7 +5,6 @@ from utils.api_utils import unique_device_names, get_dynamodb_table
 from constants.database import DEVICE_TABLE
 from constants.door import DOOR_DEVICE_TYPE
 
-
 logger = logging.getLogger("pat_api")
 router = APIRouter()
 

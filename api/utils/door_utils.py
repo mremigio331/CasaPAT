@@ -1,5 +1,7 @@
 import logging
-from utils.api_utils import get_latest_info, get_all_info
+from utils.api_utils import get_latest_info, get_all_info, generate_device_id
+from botocore.exceptions import ClientError
+from constants.door import DOOR_DEVICE_TYPE
 
 logger = logging.getLogger("pat_api")
 
@@ -53,3 +55,36 @@ def format_all_door_info(table, device_id: str):
     except (IndexError, ValueError, AttributeError, TypeError) as e:
         logging.error(f"Error processing door info for device {device_id}: {e}")
         raise ValueError(f"Error processing data: {e}")
+
+
+def add_hodor_device(table, device_name):
+    """Add a new device to the DynamoDB table."""
+    try:
+        device_id = generate_device_id()
+        logger.info(f"Generated new device ID: {device_id} for device {device_name}")
+
+        hodor_item = {
+            "DeviceID": f"DEVICE#{device_id}",
+            "DeviceName": device_name,
+            "DeviceType": DOOR_DEVICE_TYPE,
+            "DeviceManufacturer": "Fuffly Slippers? Devices",
+            "DeviceModel": "Hodor Sensor",
+        }
+        logger.info(f"Adding item to DynamoDB: {hodor_item}")
+
+        response = table.put_item(Item=hodor_item)
+        logger.info(f"DynamoDB put_item response: {response}")
+
+        logger.info(
+            f"Added new device with ID {device_id} and name {device_name} to table."
+        )
+        return hodor_item
+
+    except ClientError as e:
+        logger.error(
+            f"ClientError adding new device {device_name} to table: {e.response['Error']['Message']}"
+        )
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error adding new device {device_name} to table: {e}")
+        raise

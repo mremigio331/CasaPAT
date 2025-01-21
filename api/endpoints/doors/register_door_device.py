@@ -1,10 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
-from decimal import Decimal
 import logging
-import json
 from fastapi.responses import JSONResponse
-from utils.api_utils import get_dynamodb_table, unique_device_names, add_device
+from utils.api_utils import get_dynamodb_table, unique_device_names
+from utils.door_utils import add_hodor_device
 from constants.database import DEVICE_TABLE
 from constants.door import DOOR_DEVICE_TYPE
 from pydantic_models.door_models import DoorDevice
@@ -40,10 +38,13 @@ async def register_door_device(
             )
 
         logger.info(f"Adding new device: {data.device_name}")
-        add_device(table, data.device_name, DOOR_DEVICE_TYPE)
-        logger.info(f"Device {data.device_name} successfully added.")
+        hodor_device = add_hodor_device(table, data.device_name)
+        logger.info(f"Device {data.device_name} successfully added: {hodor_device}")
 
-        return JSONResponse(status_code=201, content={"message": "Device added."})
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Device added.", "device": hodor_device},
+        )
 
     except Exception as e:
         logger.error(
