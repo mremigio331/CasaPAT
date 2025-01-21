@@ -85,7 +85,7 @@ def get_latest_info(table, device_id):
     """Fetch the latest entry for a specific device."""
     try:
         response = table.query(
-            KeyConditionExpression=Key("DeviceID").eq(f"DEVICE#{device_id}"),
+            KeyConditionExpression=Key("DeviceID").eq(device_id),
             ScanIndexForward=False,
             Limit=1,
         )

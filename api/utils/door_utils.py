@@ -20,7 +20,7 @@ def get_latest_door_info(table, device_id: str):
         device_info = {
             "device_id": latest_info.get("DeviceID", "").split("#")[1],
             "timestamp": latest_info.get("Timestamp", "").split("#")[1],
-            "current_state": latest_info.get("CurrentState"),
+            "current_state": latest_info.get("DoorStatus"),
             "battery": float(latest_info.get("Battery", 0.0)),
         }
         logger.info(f"Latest info for device_id {device_id}: {device_info}")
@@ -46,7 +46,7 @@ def format_all_door_info(table, device_id: str):
                 {
                     "device_id": item.get("DeviceID", "").split("#")[1],
                     "timestamp": item.get("Timestamp", "").split("#")[1],
-                    "current_state": item.get("DoorStatus"),
+                    "door_status": item.get("DoorStatus"),
                     "battery": float(item.get("Battery", 0.0)),
                 }
             )
