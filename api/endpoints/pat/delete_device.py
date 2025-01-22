@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.delete(
-    "/device",
+    "/data/device",
     summary="Delete Device",
     response_description="Delete a device from the database",
 )

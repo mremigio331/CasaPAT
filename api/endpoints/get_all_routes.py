@@ -1,4 +1,10 @@
-from endpoints.pat import home, get_device_info, delete_device
+from endpoints.pat import (
+    home,
+    get_device_info,
+    get_all_data,
+    delete_device,
+    delete_all_data,
+)
 from endpoints.doors import (
     add_door_data,
     get_all_door_devices,
@@ -23,7 +29,9 @@ def get_all_routes(app):
     # Get
     app.include_router(home.router, prefix="/pat", tags=["General"])
     app.include_router(get_device_info.router, prefix="/pat", tags=["General"])
+    app.include_router(get_all_data.router, prefix="/pat", tags=["General"])
     # Delete
+    app.include_router(delete_all_data.router, prefix="/pat", tags=["General"])
     app.include_router(delete_device.router, prefix="/pat", tags=["General"])
 
     # Air Quality specific APIs

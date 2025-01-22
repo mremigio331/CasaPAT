@@ -246,3 +246,86 @@ def craft_delete_resposne(device_id, device_deleted_count, data_deleted_count):
         message += " Not sure why you had multiple devices with the same ID."
 
     return message
+
+
+def batch_delete_table_items(table):
+    """Batch delete all items from the given DynamoDB table.
+
+    Args:
+        table (boto3.Table): The DynamoDB table object.
+
+    Returns:
+        int: The number of deleted items.
+    """
+    try:
+        logger.info(f"Starting batch delete for table: {table.name}")
+
+        # Scan to get all items in the table
+        response = table.scan()
+        items = response.get("Items", [])
+        total_deleted = 0
+
+        while items:
+            with table.batch_writer() as batch:
+                for item in items:
+                    # Extract the primary key(s) correctly from the table's key schema
+                    key_to_delete = {
+                        k["AttributeName"]: item[k["AttributeName"]]
+                        for k in table.key_schema
+                    }
+
+                    batch.delete_item(Key=key_to_delete)
+                    total_deleted += 1
+
+            logger.info(f"Deleted {len(items)} items in batch.")
+
+            # Check for pagination (if there are more items to be retrieved)
+            if "LastEvaluatedKey" in response:
+                response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+                items = response.get("Items", [])
+            else:
+                break  # No more items to delete
+
+        logger.info(f"Batch delete completed. Total deleted: {total_deleted}")
+        return total_deleted
+
+    except Exception as e:
+        logger.error(f"Error batch deleting table {table.name}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error deleting table {table.name}"
+        )
+
+
+def fetch_all_items(table):
+    """Fetch all items from the given DynamoDB table.
+
+    Args:
+        table (boto3.Table): The DynamoDB table object.
+
+    Returns:
+        list: List of all items in the table.
+    """
+    try:
+        logger.info(f"Fetching all items from table: {table.name}")
+
+        items = []
+        response = table.scan()
+
+        while response.get("Items"):
+            items.extend(response["Items"])
+
+            # Check if there are more items to be fetched (pagination)
+            if "LastEvaluatedKey" in response:
+                response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+            else:
+                break
+
+        logger.info(f"Fetched {len(items)} items from {table.name}")
+        return items
+
+    except Exception as e:
+        logger.error(f"Error fetching items from {table.name}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error fetching data from {table.name}",
+        )
