@@ -1,20 +1,26 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 import logging
-from utils.api_utils import get_dynamodb_table, get_device_info
-from utils.door_utils import format_all_door_info
+from utils.api_utils import (
+    get_dynamodb_table,
+    get_device_info,
+    delete_device_entries_from_devices_table,
+    craft_delete_resposne,
+    delete_device_entries_from_data_table,
+)
+from utils.air_utils import format_full_air_info
 from constants.database import DATA_TABLE, DEVICE_TABLE
 
 logger = logging.getLogger("pat_api")
 router = APIRouter()
 
 
-@router.get(
-    "/info/all",
-    summary="Get All Info",
-    response_description="Getting all info for a specific device",
+@router.delete(
+    "/device",
+    summary="Delete Device",
+    response_description="Delete a device from the database",
 )
-async def get_all_door_info(
+async def delete_pat_device(
     device_name: str,
     data_table=Depends(lambda: get_dynamodb_table(DATA_TABLE)),
     device_table=Depends(lambda: get_dynamodb_table(DEVICE_TABLE)),
@@ -43,6 +49,7 @@ async def get_all_door_info(
                 status_code=404, detail=f"No device found with ID: {device_name}"
             )
         device_id = device_info.get("DeviceID")
+        logging.info(f"device_info: {device_info}")
 
     except HTTPException as http_exc:
         raise http_exc
@@ -52,24 +59,28 @@ async def get_all_door_info(
         raise HTTPException(status_code=500, detail="Internal server error")
 
     try:
-        logger.info(f"Retrieving latest info for device: {device_id}")
-        all_info = format_all_door_info(data_table, device_id)
-
-        if not all_info:
-            logger.info(f"No data found for device: {device_id}")
-            raise HTTPException(
-                status_code=404, detail=f"No data found for device {device_id}"
-            )
-
-        logger.info(f"Retrieved latest info for {device_id}: {all_info}")
-        return JSONResponse(
-            content={"database_entries": all_info, "device_info": device_info},
-            status_code=200,
+        device_deleted_count = delete_device_entries_from_devices_table(
+            device_table, device_id
         )
-
+        logger.info(f"Deleted {device_deleted_count} items from device table")
     except HTTPException as e:
-        raise e  # Re-raise expected HTTPExceptions
+        logger.error(f"Error deleting device from device table: {e}")
+        raise e
 
-    except Exception as e:
-        logger.error(f"Error retrieving latest info: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+    try:
+        data_deleted_count = delete_device_entries_from_data_table(
+            data_table, device_id
+        )
+        logger.info(f"Deleted {data_deleted_count} items from data table")
+    except HTTPException as e:
+        logger.error(f"Error deleting device from data table: {e}")
+        raise e
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "message": craft_delete_resposne(
+                device_id, device_deleted_count, data_deleted_count
+            )
+        },
+    )

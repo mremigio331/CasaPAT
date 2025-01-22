@@ -4,14 +4,16 @@ import logging
 import json
 from utils.api_utils import get_latest_info, get_all_info, generate_device_id
 from botocore.exceptions import ClientError
-from constants.air import AIR_QUALITY_DEVICE_TYPE
+from constants.air import AIR_QUALITY_DEVICE_TYPE, PM10_INFO, PM25_INFO
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+
 
 logger = logging.getLogger("pat_api")
 
 
 def get_air_quality_levels():
-    with open("air_quality_levels.json", "r") as json_file:
-        return json.load(json_file)
+    return {"PM2.5": PM25_INFO, "PM10": PM10_INFO}
 
 
 def get_air_quality_info(value, pm_type_levels):
@@ -30,58 +32,103 @@ def normalize_item(item):
     }
 
 
-def convert_floats_to_decimals(data):
-    """Recursively convert float values to Decimal."""
+def convert_decimals_to_floats(data):
+    """Recursively convert Decimal values to float for JSON serialization."""
     if isinstance(data, list):
-        return [convert_floats_to_decimals(item) for item in data]
+        return [convert_decimals_to_floats(item) for item in data]
     elif isinstance(data, dict):
-        return {k: convert_floats_to_decimals(v) for k, v in data.items()}
-    elif isinstance(data, float):
-        return Decimal(str(data))
+        return {k: convert_decimals_to_floats(v) for k, v in data.items()}
+    elif isinstance(data, Decimal):
+        return float(data)  # Convert Decimal to float
     return data
+
+
+def staleness_check(timestamp_str: str) -> tuple[bool, int]:
+    """Check if the given timestamp is more than 20 minutes old and return its age in seconds.
+
+    Args:
+        timestamp_str (str): The timestamp string in format 'YYYY-MM-DDTHH:MM:SSZ'.
+
+    Returns:
+        tuple: (bool, int) where:
+            - bool: True if the timestamp is older than 20 minutes, False otherwise.
+            - int: The age of the timestamp in seconds.
+    """
+    try:
+        # Convert the timestamp string to a datetime object (assuming UTC time)
+        timestamp = datetime.strptime(timestamp_str, "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc
+        )
+
+        # Get the current time in UTC
+        current_time = datetime.now(timezone.utc)
+
+        # Calculate the time difference
+        time_difference = current_time - timestamp
+
+        # Get the age in seconds
+        age_in_seconds = int(time_difference.total_seconds())
+
+        # Check if the timestamp is older than 20 minutes
+        is_older = time_difference > timedelta(minutes=20)
+
+        return is_older, age_in_seconds
+
+    except ValueError:
+        raise ValueError("Invalid timestamp format. Expected 'YYYY-MM-DDTHH:MM:SSZ'")
 
 
 def get_latest_air_quality_info(table, device_id):
     """Fetch the latest entry for a specific device."""
+    logger.info(f"Fetching latest info for device_id: {device_id}")
+    latest_info = get_latest_info(table, device_id)
+
+    if not latest_info:
+        logger.warning(f"No latest info found for device_id: {device_id}")
+        return None
+
     try:
-        response = table.query(
-            KeyConditionExpression=Key("DeviceID").eq(device_id),
-            ScanIndexForward=False,
-            Limit=1,
-        )
-        if "Items" in response and response["Items"]:
-            item = response["Items"][0]
-            pm25_value = item.get("PM25")
-            pm10_value = item.get("PM10")
+        pm25_value = float(latest_info.get("PM25", 0.0))
+        pm10_value = float(latest_info.get("PM10", 0.0))
+        latest_info["PM25"] = pm25_value
+        latest_info["PM25"] = pm25_value
+        if pm25_value is not None:
+            message, code = get_air_quality_info(
+                pm25_value, get_air_quality_levels()["PM2.5"]
+            )
+            latest_info["message"] = message
+            latest_info["code"] = int(code)
+            logger.info(f"Message: {message}. Code: {code}")
 
-            if pm25_value is not None:
-                message, code = get_air_quality_info(
-                    pm25_value, get_air_quality_levels()["PM2.5"]
-                )
-                item["message"] = message
-                item["code"] = int(code)
-                logger.info(f"Message: {message}. Code: {code}")
+        elif pm10_value is not None:
+            message, code = get_air_quality_info(
+                pm10_value, get_air_quality_levels()["PM10"]
+            )
+            latest_info["message"] = message
+            latest_info["code"] = int(code)
+            logger.info(f"Message: {message}. Code: {code}")
 
-            elif pm10_value is not None:
-                message, code = get_air_quality_info(
-                    pm10_value, get_air_quality_levels()["PM10"]
-                )
-                item["message"] = message
-                item["code"] = int(code)
-                logger.info(f"Message: {message}. Code: {code}")
-
-            else:
-                item["message"] = "Unknown"
-                item["code"] = 0
-                logger.info("No message or code identified")
-
-            return item
         else:
-            logger.info(f"No entries found for device {device_id}.")
-            return None
+            latest_info["message"] = "Unknown"
+            latest_info["code"] = 0
+            logger.info("No message or code identified")
     except Exception as e:
-        logger.error(f"Error fetching latest info for device {device_id}: {e}")
-        raise
+        logger.error(
+            f"Error processing latest air quality info for device_id {device_id}: {e}"
+        )
+        raise ValueError(f"Error processing latest air quality info: {e}")
+
+    try:
+        time_stamp = latest_info.get("Timestamp")
+        stale, age = staleness_check(time_stamp)
+        latest_info["staleness"] = stale
+        latest_info["age"] = age
+
+    except Exception as e:
+        logger.error(f"Error processing staleness check for device_id {device_id}: {e}")
+        raise ValueError(f"Error processing staleness check: {e}")
+
+    return convert_decimals_to_floats(latest_info)
 
 
 def add_walle_device(table, device_name):
@@ -115,3 +162,31 @@ def add_walle_device(table, device_name):
     except Exception as e:
         logger.error(f"Unexpected error adding new device {device_name} to table: {e}")
         raise
+
+
+def format_full_air_info(table, device_id: str):
+    """Get all info for a specific door device and format the response."""
+    logging.info(f"Starting formatting for device_id: {device_id}")
+    all_info = get_all_info(table, device_id)
+    logging.info(f"allinfo : {all_info}")
+
+    if not all_info:
+        return None
+
+    try:
+        formatted_info = []
+        for item in all_info:
+            logging.info(f"Processing item: {item}")
+            formatted_info.append(
+                {
+                    "device_id": item.get("DeviceID", "").split("#")[1],
+                    "timestamp": item.get("Timestamp", ""),
+                    "pm25": float(item.get("PM25", 0.0)),
+                    "pm10": float(item.get("PM10", 0.0)),
+                }
+            )
+        return formatted_info
+
+    except (IndexError, ValueError, AttributeError, TypeError) as e:
+        logging.error(f"Error processing air info for device {device_id}: {e}")
+        raise ValueError(f"Error processing data: {e}")
