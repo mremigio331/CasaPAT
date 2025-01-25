@@ -15,7 +15,7 @@ sudo apt upgrade -y
 # Install required tools and dependencies
 echo "Installing required tools and dependencies..."
 sudo apt install -y python3-flask python3-flasgger python3-pip python3-botocore python3-boto3 screen default-jdk wget curl unzip
-sudo pip3 install fastapi uvicorn black --break-system-packages
+sudo pip3 install fastapi uvicorn black watchdog --break-system-packages
 
 # Install AWS CLI
 echo "Checking if AWS CLI is installed..."

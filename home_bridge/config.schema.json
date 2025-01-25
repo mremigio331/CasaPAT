@@ -1,0 +1,22 @@
+{
+  "pluginAlias": "WALL_E",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "platform": {
+        "title": "Air Quality Platform",
+        "type": "string",
+        "required": true,
+        "default": "WALL_E"
+      },
+      "apiEndpoint": {
+        "title": "API Endpoint",
+        "type": "string",
+        "required": true,
+        "default": "http://air.local:5000"
+      }
+    }
+  }
+}
