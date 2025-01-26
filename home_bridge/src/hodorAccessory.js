@@ -29,7 +29,7 @@ export class HodorAccessory {
       .on('get', this.getBatteryLevel.bind(this));
 
     // Set up periodic polling
-    this.pollingInterval = setInterval(this.pollData.bind(this), 300000); // Poll every 5 minutes
+    this.pollingInterval = setInterval(this.pollData.bind(this), 5000); // Poll every 5 minutes
   }
 
   async fetchData() {
