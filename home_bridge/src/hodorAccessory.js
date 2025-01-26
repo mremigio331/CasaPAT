@@ -33,14 +33,14 @@ export class HodorAccessory {
   }
 
   async fetchData() {
-    this.log.info(`Fetching data for door sensor: ${this.device}`);
+    this.log.debug(`Fetching data for door sensor: ${this.device}`);
     try {
       const response = await fetch(`${this.apiEndpoint}/doors/info/latest?device_name=${this.device}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      this.log.info(`Fetched data for door sensor ${this.device}: ${JSON.stringify(data)}`);
+      this.log.debug(`Fetched data for door sensor ${this.device}: ${JSON.stringify(data)}`);
       return data.latest_info;
     } catch (error) {
       this.log.error(`Error fetching data for ${this.device}: ${error}`);
@@ -50,7 +50,7 @@ export class HodorAccessory {
 
   async getDoorState(callback) {
     const data = await this.fetchData();
-    this.log.info(`Door: ${this.device}, Data: ${JSON.stringify(data)}`);
+    this.log.debug(`Door: ${this.device}, Data: ${JSON.stringify(data)}`);
     if (!data) {
       this.log.warn(`No data received for door sensor: ${this.device}`);
       callback(null, this.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED);
@@ -68,7 +68,7 @@ export class HodorAccessory {
 
   async getBatteryLevel(callback) {
     const data = await this.fetchData();
-    this.log.info(`Battery: ${this.device}, Data: ${JSON.stringify(data)}`);
+    this.log.debug(`Battery: ${this.device}, Data: ${JSON.stringify(data)}`);
     if (!data) {
       this.log.warn(`No data received for battery level: ${this.device}`);
       callback(null, 0);
@@ -85,9 +85,9 @@ export class HodorAccessory {
   }
 
   async pollData() {
-    this.log.info(`Polling data for door sensor: ${this.device}`);
+    this.log.debug(`Polling data for door sensor: ${this.device}`);
     const data = await this.fetchData();
-    this.log.info(`Polling data for door sensor: ${this.device}, data: ${JSON.stringify(data)}`);
+    this.log.debug(`Polling data for door sensor: ${this.device}, data: ${JSON.stringify(data)}`);
     if (data) {
       try {
         const doorState = this.parseDoorState(data.current_state);
@@ -97,8 +97,8 @@ export class HodorAccessory {
         this.batteryService.updateCharacteristic(this.api.hap.Characteristic.BatteryLevel, batteryLevel);
 
         // Add logging to confirm updates
-        this.log.info(`Updated door state for ${this.device}: ${data.current_state}`);
-        this.log.info(`Updated battery level for ${this.device}: ${data.battery}%`);
+        this.log.debug(`Updated door state for ${this.device}: ${data.current_state}`);
+        this.log.debug(`Updated battery level for ${this.device}: ${data.battery}%`);
       } catch (error) {
         this.log.error(`Error updating door sensor data: ${error}`);
       }
@@ -106,13 +106,13 @@ export class HodorAccessory {
   }
 
   parseDoorState(state) {
-    this.log.info(`Parsing door state for ${this.device}: ${state}`);
+    this.log.debug(`Parsing door state for ${this.device}: ${state}`);
 
     if (state === 'CLOSED') {
-      this.log.info(`Door sensor ${this.device} is CLOSED`);
+      this.log.debug(`Door sensor ${this.device} is CLOSED`);
       return this.api.hap.Characteristic.ContactSensorState.CONTACT_DETECTED;
     } else if (state === 'OPEN') {
-      this.log.info(`Door sensor ${this.device} is OPEN`);
+      this.log.debug(`Door sensor ${this.device} is OPEN`);
       return this.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
     } else {
       this.log.warn(`Unknown door state for device ${this.device}: ${state}`);

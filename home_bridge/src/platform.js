@@ -2,10 +2,9 @@ import fetch from 'node-fetch';
 import { WALL_EAccessory } from './wallEAccessory.js';
 import { HodorAccessory } from './hodorAccessory.js';
 
-
 export class CasaPAT {
   constructor(log, config, api) {
-    log('Initializing CasaPat...');
+    log.info('Initializing CasaPat...');
     this.log = log;
     this.config = config;
     this.api = api;
@@ -14,7 +13,7 @@ export class CasaPAT {
 
     if (api) {
       this.api.on('didFinishLaunching', () => {
-        this.log('DidFinishLaunching');
+        this.log.info('DidFinishLaunching');
         this.discoverDevices();
       });
     } else {
@@ -23,7 +22,7 @@ export class CasaPAT {
   }
 
   async discoverDevices() {
-    this.log('Discovering devices...');
+    this.log.info('Discovering devices...');
 
     const sensorTypes = [
       { type: 'air', endpoint: `${this.apiEndpoint}/air/get_devices/air_devices` },
@@ -32,7 +31,7 @@ export class CasaPAT {
 
     for (const sensor of sensorTypes) {
       try {
-        this.log(`Fetching ${sensor.type} devices from ${sensor.endpoint}`);
+        this.log.info(`Fetching ${sensor.type} devices from ${sensor.endpoint}`);
         const response = await fetch(sensor.endpoint);
         const devicesData = await response.json();
 
@@ -41,7 +40,7 @@ export class CasaPAT {
             await this.fetchDeviceInfoAndAdd(device, sensor.type);
           }
         } else {
-          this.log.error(`Invalid response format for ${sensor.type} devices: ${JSON.stringify(devicesData)}`);
+          this.log.warn(`Invalid response format for ${sensor.type} devices: ${JSON.stringify(devicesData)}`);
         }
       } catch (error) {
         this.log.error(`Error discovering ${sensor.type} devices: ${error}`);
@@ -61,10 +60,10 @@ export class CasaPAT {
       const deviceName = deviceInfo.device_info.DeviceName;
 
       if (deviceID && deviceName) {
-        this.log(`Fetched device info for ${deviceName}: ${JSON.stringify(deviceInfo)}`);
+        this.log.info(`Fetched device info for ${deviceName}: ${JSON.stringify(deviceInfo)}`);
         this.addAccessory(deviceID, deviceName, type, deviceInfo.device_info);
       } else {
-        this.log.error(`Invalid device info format for ${device}: ${JSON.stringify(deviceInfo)}`);
+        this.log.warn(`Invalid device info format for ${device}: ${JSON.stringify(deviceInfo)}`);
       }
     } catch (error) {
       this.log.error(`Error fetching device info for ${device}: ${error}`);
@@ -76,10 +75,10 @@ export class CasaPAT {
     const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
 
     if (existingAccessory) {
-      this.log(`Restoring existing ${type} accessory from cache: ${existingAccessory.displayName}`);
+      this.log.info(`Restoring existing ${type} accessory from cache: ${existingAccessory.displayName}`);
       this.createAccessoryHandler(type, existingAccessory, deviceInfo);
     } else {
-      this.log(`Adding new ${type} accessory: ${deviceName}`);
+      this.log.info(`Adding new ${type} accessory: ${deviceName}`);
       const accessory = new this.api.platformAccessory(deviceName, uuid);
       accessory.context.device = deviceInfo;
       accessory.context.type = type;
@@ -99,7 +98,7 @@ export class CasaPAT {
   }
 
   configureAccessory(accessory) {
-    this.log(`Configuring accessory: ${accessory.displayName}`);
+    this.log.info(`Configuring accessory: ${accessory.displayName}`);
     this.accessories.push(accessory);
   }
 }

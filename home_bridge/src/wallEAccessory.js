@@ -33,14 +33,14 @@ export class WALL_EAccessory {
   }
 
   async fetchData() {
-    this.log.info(`Fetching data for device: ${this.device}`);
+    this.log.debug(`Fetching data for device: ${this.device}`);
     try {
       const response = await fetch(`${this.apiEndpoint}/air/info/latest?device_name=${this.device}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      this.log.info(`Fetched data for device ${this.device}: ${JSON.stringify(data)}`);
+      this.log.debug(`Fetched data for device ${this.device}: ${JSON.stringify(data)}`);
       return data.latest_info;
     } catch (error) {
       this.log.error(`Error fetching data for ${this.device}: ${error}`);
@@ -50,7 +50,7 @@ export class WALL_EAccessory {
 
   async getAirQuality(callback) {
     const data = await this.fetchData();
-    this.log.info(`Sensor: ${this.device}, Data: ${JSON.stringify(data)}`);
+    this.log.debug(`Sensor: ${this.device}, Data: ${JSON.stringify(data)}`);
     if (!data) {
       this.log.warn(`No data received for device: ${this.device}`);
       callback(null, this.api.hap.Characteristic.AirQuality.UNKNOWN);
@@ -69,7 +69,7 @@ export class WALL_EAccessory {
   }
 
   async pollData() {
-    this.log.info(`Polling data for device: ${this.device}`);
+    this.log.debug(`Polling data for device: ${this.device}`);
     const data = await this.fetchData();
     if (data) {
       try {
@@ -79,9 +79,9 @@ export class WALL_EAccessory {
         this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.AirQuality, airQuality);
 
         // Add logging to confirm updates
-        this.log.info(`Updated PM10 for device ${this.device}: ${data.PM10}`);
-        this.log.info(`Updated PM25 for device ${this.device}: ${data.PM25}`);
-        this.log.info(`Updated Air Quality for device ${this.device}: ${airQuality}`);
+        this.log.debug(`Updated PM10 for device ${this.device}: ${data.PM10}`);
+        this.log.debug(`Updated PM25 for device ${this.device}: ${data.PM25}`);
+        this.log.debug(`Updated Air Quality for device ${this.device}: ${airQuality}`);
       } catch (error) {
         this.log.error(`Error updating air quality: ${error}`);
       }
@@ -90,23 +90,23 @@ export class WALL_EAccessory {
 
   parseAirQuality(data) {
     const code = data.code;
-    this.log.info(`Parsing air quality code ${code} for device ${this.device}`);
+    this.log.debug(`Parsing air quality code ${code} for device ${this.device}`);
 
     switch (code) {
       case 1:
-        this.log.info(`Air quality for device ${this.device} is EXCELLENT`);
+        this.log.debug(`Air quality for device ${this.device} is EXCELLENT`);
         return this.api.hap.Characteristic.AirQuality.EXCELLENT;
       case 2:
-        this.log.info(`Air quality for device ${this.device} is GOOD`);
+        this.log.debug(`Air quality for device ${this.device} is GOOD`);
         return this.api.hap.Characteristic.AirQuality.GOOD;
       case 3:
-        this.log.info(`Air quality for device ${this.device} is FAIR`);
+        this.log.debug(`Air quality for device ${this.device} is FAIR`);
         return this.api.hap.Characteristic.AirQuality.FAIR;
       case 4:
-        this.log.info(`Air quality for device ${this.device} is INFERIOR`);
+        this.log.debug(`Air quality for device ${this.device} is INFERIOR`);
         return this.api.hap.Characteristic.AirQuality.INFERIOR;
       case 5:
-        this.log.info(`Air quality for device ${this.device} is POOR`);
+        this.log.debug(`Air quality for device ${this.device} is POOR`);
         return this.api.hap.Characteristic.AirQuality.POOR;
       default:
         this.log.warn(`Unknown air quality code for device ${this.device}: ${code}`);
