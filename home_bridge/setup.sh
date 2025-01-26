@@ -15,5 +15,5 @@ npm run build
 sudo hb-service link
 
 sudo npm link
-sudo npm link casaPat
+sudo npm link homebridge-casapat
 sudo systemctl restart homebridge

@@ -1,2 +1,2 @@
 export const PLATFORM_NAME = 'CasaPat';
-export const PLUGIN_NAME = 'casaPat';
+export const PLUGIN_NAME = 'CasaPat';

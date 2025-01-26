@@ -2,7 +2,8 @@ import fetch from 'node-fetch';
 import { WALL_EAccessory } from './wallEAccessory.js';
 import { HodorAccessory } from './hodorAccessory.js';
 
-export class CasaPat {
+
+export class CasaPAT {
   constructor(log, config, api) {
     log('Initializing CasaPat...');
     this.log = log;
@@ -26,7 +27,7 @@ export class CasaPat {
 
     const sensorTypes = [
       { type: 'air', endpoint: `${this.apiEndpoint}/air/get_devices/air_devices` },
-      { type: 'door', endpoint: `${this.apiEndpoint}/doors/get_devices/door_devices` }
+      { type: 'doors', endpoint: `${this.apiEndpoint}/doors/get_devices/door_devices` }
     ];
 
     for (const sensor of sensorTypes) {
@@ -71,26 +72,27 @@ export class CasaPat {
   }
 
   addAccessory(deviceID, deviceName, type, deviceInfo) {
-    const existingAccessory = this.accessories.find(accessory => accessory.UUID === deviceID);
+    const uuid = this.api.hap.uuid.generate(deviceName);
+    const existingAccessory = this.accessories.find(accessory => accessory.UUID === uuid);
 
     if (existingAccessory) {
       this.log(`Restoring existing ${type} accessory from cache: ${existingAccessory.displayName}`);
       this.createAccessoryHandler(type, existingAccessory, deviceInfo);
     } else {
       this.log(`Adding new ${type} accessory: ${deviceName}`);
-      const accessory = new this.api.platformAccessory(deviceName, deviceID);
+      const accessory = new this.api.platformAccessory(deviceName, uuid);
       accessory.context.device = deviceInfo;
       accessory.context.type = type;
       this.createAccessoryHandler(type, accessory, deviceInfo);
-      this.api.registerPlatformAccessories('casaPat', 'WALL_E', [accessory]);
+      this.api.registerPlatformAccessories('homebridge-casapat', 'CasaPAT', [accessory]);
     }
   }
 
   createAccessoryHandler(type, accessory, deviceInfo) {
     if (type === 'air') {
       new WALL_EAccessory(this.log, this.api, accessory, deviceInfo.DeviceName, this.apiEndpoint, deviceInfo);
-    } else if (type === 'door') {
-      new HodorAccessory(this.log, this.api, accessory, deviceInfo.DeviceName, this.apiEndpoint);
+    } else if (type === 'doors') {
+      new HodorAccessory(this.log, this.api, accessory, deviceInfo.DeviceName, this.apiEndpoint, deviceInfo);
     } else {
       this.log.error(`Unknown accessory type: ${type}`);
     }

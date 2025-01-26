@@ -35,13 +35,13 @@ export class WALL_EAccessory {
   async fetchData() {
     this.log.info(`Fetching data for device: ${this.device}`);
     try {
-      const response = await fetch(`${this.apiEndpoint}/air/info/latest?device=${this.device}`);
+      const response = await fetch(`${this.apiEndpoint}/air/info/latest?device_name=${this.device}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
       this.log.info(`Fetched data for device ${this.device}: ${JSON.stringify(data)}`);
-      return data.data;
+      return data.latest_info;
     } catch (error) {
       this.log.error(`Error fetching data for ${this.device}: ${error}`);
       return null;
@@ -50,6 +50,7 @@ export class WALL_EAccessory {
 
   async getAirQuality(callback) {
     const data = await this.fetchData();
+    this.log.info(`Sensor: ${this.device}, Data: ${JSON.stringify(data)}`);
     if (!data) {
       this.log.warn(`No data received for device: ${this.device}`);
       callback(null, this.api.hap.Characteristic.AirQuality.UNKNOWN);
@@ -92,19 +93,19 @@ export class WALL_EAccessory {
     this.log.info(`Parsing air quality code ${code} for device ${this.device}`);
 
     switch (code) {
-      case "1":
+      case 1:
         this.log.info(`Air quality for device ${this.device} is EXCELLENT`);
         return this.api.hap.Characteristic.AirQuality.EXCELLENT;
-      case "2":
+      case 2:
         this.log.info(`Air quality for device ${this.device} is GOOD`);
         return this.api.hap.Characteristic.AirQuality.GOOD;
-      case "3":
+      case 3:
         this.log.info(`Air quality for device ${this.device} is FAIR`);
         return this.api.hap.Characteristic.AirQuality.FAIR;
-      case "4":
+      case 4:
         this.log.info(`Air quality for device ${this.device} is INFERIOR`);
         return this.api.hap.Characteristic.AirQuality.INFERIOR;
-      case "5":
+      case 5:
         this.log.info(`Air quality for device ${this.device} is POOR`);
         return this.api.hap.Characteristic.AirQuality.POOR;
       default:
