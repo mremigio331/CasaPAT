@@ -20,7 +20,7 @@ build/
 *.whl
 
 # DynamoDB Local
-dynamodb-local/
+pat-air-data-local/
 *.tar.gz
 dynamodb-local-metadata.json
 

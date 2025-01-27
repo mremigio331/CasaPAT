@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from dynamodb_setup import setup_dynamodb
+from utils.dynamodb_utils import setup_dynamodb
 from utils.api_utils import get_dynamodb_table
 from endpoints.get_all_routes import get_all_routes
 import os

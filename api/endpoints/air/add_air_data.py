@@ -3,7 +3,7 @@ from decimal import Decimal
 import logging
 import json
 from fastapi.responses import JSONResponse
-from utils.api_utils import get_dynamodb_table, get_device_info
+from utils.api_utils import get_dynamodb_table, get_device_info, create_event_id
 from constants.database import DATA_TABLE, DEVICE_TABLE
 from pydantic_models.air_models import AddAirDeviceData
 
@@ -51,6 +51,7 @@ async def add_air_data(
         logger.info(f"Cleaning up data: {json.dumps(data.dict(), default=str)}")
         clean_up_data = {
             "DeviceID": device_info.get("DeviceID"),
+            "EventID": create_event_id(),
             "DeviceName": data.device_name,
             "Timestamp": data.timestamp,
             "PM25": Decimal(str(data.pm25)),

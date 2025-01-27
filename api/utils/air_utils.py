@@ -180,6 +180,7 @@ def format_full_air_info(table, device_id: str):
             formatted_info.append(
                 {
                     "device_id": item.get("DeviceID", "").split("#")[1],
+                    "event_id": item.get("EventID", "").split("#")[1],
                     "timestamp": item.get("Timestamp", ""),
                     "pm25": float(item.get("PM25", 0.0)),
                     "pm10": float(item.get("PM10", 0.0)),

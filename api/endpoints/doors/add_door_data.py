@@ -3,7 +3,7 @@ from decimal import Decimal
 import logging
 import json
 from fastapi.responses import JSONResponse
-from utils.api_utils import get_dynamodb_table, get_device_info
+from utils.api_utils import get_dynamodb_table, get_device_info, create_event_id
 from constants.database import DATA_TABLE, DEVICE_TABLE
 from constants.door import DOOR_OPTIONS
 from pydantic_models.door_models import AddDoorDeviceData
@@ -70,6 +70,7 @@ async def add_door_data(
 
     clean_up_data = {
         "DeviceID": device_info.get("DeviceID"),
+        "EventID": create_event_id(),
         "DeviceName": data.device_name,
         "Timestamp": data.timestamp,
         "DeviceType": "DoorSensor",
