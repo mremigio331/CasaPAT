@@ -163,11 +163,11 @@ def ensure_data_table_exists(dynamodb):
                 DATA_TABLE,
                 [
                     {"AttributeName": "DeviceID", "KeyType": "HASH"},
-                    {"AttributeName": "EventID", "KeyType": "RANGE"},
+                    {"AttributeName": "Timestamp", "KeyType": "RANGE"},
                 ],
                 [
                     {"AttributeName": "DeviceID", "AttributeType": "S"},
-                    {"AttributeName": "EventID", "AttributeType": "S"},
+                    {"AttributeName": "Timestamp", "AttributeType": "S"},
                 ],
             )
         else:
