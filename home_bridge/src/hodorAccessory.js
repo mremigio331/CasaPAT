@@ -58,7 +58,7 @@ export class HodorAccessory {
     }
 
     try {
-      const doorState = this.parseDoorState(data.current_state);
+      const doorState = this.parseDoorState(data.door_status);
       callback(null, doorState);
     } catch (error) {
       this.log.error(`Error getting door state: ${error}`);
@@ -90,14 +90,14 @@ export class HodorAccessory {
     this.log.debug(`Polling data for door sensor: ${this.device}, data: ${JSON.stringify(data)}`);
     if (data) {
       try {
-        const doorState = this.parseDoorState(data.current_state);
+        const doorState = this.parseDoorState(data.door_status);
         const batteryLevel = parseInt(data.battery, 10);
 
         this.doorSensorService.updateCharacteristic(this.api.hap.Characteristic.ContactSensorState, doorState);
         this.batteryService.updateCharacteristic(this.api.hap.Characteristic.BatteryLevel, batteryLevel);
 
         // Add logging to confirm updates
-        this.log.debug(`Updated door state for ${this.device}: ${data.current_state}`);
+        this.log.debug(`Updated door state for ${this.device}: ${data.door_status}`);
         this.log.debug(`Updated battery level for ${this.device}: ${data.battery}%`);
       } catch (error) {
         this.log.error(`Error updating door sensor data: ${error}`);

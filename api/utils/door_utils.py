@@ -21,7 +21,7 @@ def get_latest_door_info(table, device_id: str):
             "device_id": latest_info.get("DeviceID", "").split("#")[1],
             "event_id": latest_info.get("EventID", "").split("#")[1],
             "timestamp": latest_info.get("Timestamp", ""),
-            "current_state": latest_info.get("DoorStatus"),
+            "door_status": latest_info.get("DoorStatus"),
             "battery": float(latest_info.get("Battery", 0.0)),
         }
         logger.info(f"Latest info for device_id {device_id}: {device_info}")
