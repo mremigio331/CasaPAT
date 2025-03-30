@@ -1,13 +1,14 @@
 import machine
 import network
 import json
-import requests
+import urequests as requests
 import time
+import gc
 
 # Load configuration from file
 CONFIG_FILE = "door_config.json"
 
-""""
+"""
 Config file format:
 {
     "device_name": "device_name",
@@ -17,7 +18,6 @@ Config file format:
     "gpio_pin": 16,
     "poll_interval": 0.5
 }
-
 """
 
 try:
@@ -31,7 +31,7 @@ device_name = config.get("device_name", "default_door_sensor")
 wifi_ssid = config.get("wifi_name", "your_wifi_ssid")
 wifi_password = config.get("wifi_password", "your_wifi_password")
 server_url = config.get("server_url", "http://pat.local:5000")
-GPIO_PIN = config.get("gpio_pin", 16)  # Default pin, update as needed
+GPIO_PIN = config.get("gpio_pin", 16)
 POLL_INTERVAL = config.get("poll_interval", 0.5)
 
 print(
@@ -46,11 +46,17 @@ def connect_wifi():
     wlan.connect(wifi_ssid, wifi_password)
 
     print(f"Connecting to Wi-Fi: {wifi_ssid}")
-    while not wlan.isconnected():
+    for _ in range(10):
+        if wlan.isconnected():
+            break
         time.sleep(1)
         print("Connecting...")
 
-    print("Connected to Wi-Fi:", wlan.ifconfig())
+    if wlan.isconnected():
+        print("Connected to Wi-Fi:", wlan.ifconfig())
+    else:
+        print("Failed to connect to Wi-Fi. Restarting...")
+        machine.reset()  # Restart the device if Wi-Fi fails
 
 
 # Door Sensor Class
@@ -63,26 +69,26 @@ class DoorSensor:
         print(f"Magnetic sensor initialized on GPIO pin {pin}.")
 
     def send_state(self, state):
+        gc.collect()
         payload = {
             "device_name": device_name,
             "door_status": "CLOSED" if state == 0 else "OPEN",
-            "battery": 100,
+            "battery": 100,  # Fake battery percentage
         }
         if self.debug:
             print(f"[DEBUG] Payload: {payload}")
         else:
             try:
-                # Manually construct HTTP headers inside the request
                 url = f"{server_url}/doors/add_data/door_status"
                 headers = {"Content-Type": "application/json"}
 
-                response = requests.post(
-                    url,
-                    json=payload,  # Use requests' built-in JSON parameter
-                    headers=headers,
-                )
+                gc.collect()  # Free memory again before request
+                response = requests.post(url, json=payload, headers=headers)
 
                 print(f"Data sent with status code: {response.status_code}")
+
+                response.close()
+                gc.collect()
             except Exception as e:
                 print(f"Failed to send data: {e}")
 
@@ -106,5 +112,5 @@ class DoorSensor:
 # Main execution
 if __name__ == "__main__":
     connect_wifi()
-    sensor = DoorSensor(pin=GPIO_PIN, poll_interval=POLL_INTERVAL, debug=True)
+    sensor = DoorSensor(pin=GPIO_PIN, poll_interval=POLL_INTERVAL, debug=False)
     sensor.run()

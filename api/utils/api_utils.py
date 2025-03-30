@@ -158,10 +158,12 @@ def generate_device_id():
     """Generate a random 8-character alphanumeric device ID."""
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
+
 def create_event_id():
     """Generate a unique EventID in the format EVENT#<unique_number>."""
     unique_number = uuid.uuid4().int >> 64  # Generate a unique number
     return f"EVENT#{unique_number}"
+
 
 def delete_device_entries_from_data_table(table, device_id):
     """Delete all entries with the given device_id from the PATData table (DeviceID, Timestamp)."""

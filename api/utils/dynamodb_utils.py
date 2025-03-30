@@ -15,6 +15,7 @@ DYNAMODB_LOCAL_DOWNLOAD_URL = (
     "https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz"
 )
 
+
 def get_dynamodb_local_jar_path():
     """Get the path to the DynamoDB Local JAR file."""
     for root, dirs, files in os.walk(DYNAMODB_LOCAL_DIR):
@@ -22,6 +23,7 @@ def get_dynamodb_local_jar_path():
             if file.endswith(".jar"):
                 return os.path.join(root, file)
     return None
+
 
 def download_dynamodb_local():
     """Download and extract DynamoDB Local if it doesn't exist."""
@@ -53,6 +55,7 @@ def download_dynamodb_local():
     else:
         logger.info("DynamoDB Local JAR already exists. Skipping download.")
 
+
 def is_dynamodb_local_running():
     """Check if DynamoDB Local is already running."""
     try:
@@ -69,6 +72,7 @@ def is_dynamodb_local_running():
     except Exception as e:
         logger.error(f"Failed to check if DynamoDB Local is running: {e}")
         return False
+
 
 def start_dynamodb_local():
     """Start DynamoDB Local as a subprocess with persistent storage."""
@@ -106,6 +110,7 @@ def start_dynamodb_local():
     )
     logger.info("DynamoDB Local started successfully.")
 
+
 def initialize_dynamodb(profile_name=None, use_local=True):
     """Initialize DynamoDB connection."""
     try:
@@ -133,6 +138,7 @@ def initialize_dynamodb(profile_name=None, use_local=True):
         logger.error(f"Failed to initialize DynamoDB: {e}")
         raise SystemExit("Critical error: Unable to initialize DynamoDB. Exiting.")
 
+
 def create_dynamodb_table(dynamodb, table_name, key_schema, attribute_definitions):
     """Create a DynamoDB table with given schema."""
     try:
@@ -148,6 +154,7 @@ def create_dynamodb_table(dynamodb, table_name, key_schema, attribute_definition
     except Exception as e:
         logger.error(f"Failed to create table '{table_name}': {e}")
         raise
+
 
 def ensure_data_table_exists(dynamodb):
     """Ensure the PAT data table exists."""
@@ -174,6 +181,7 @@ def ensure_data_table_exists(dynamodb):
             logger.error(f"Error accessing table: {e}")
             raise
 
+
 def ensure_devices_table_exists(dynamodb):
     """Ensure the PAT devices table exists with updated schema and GSI."""
     try:
@@ -198,6 +206,7 @@ def ensure_devices_table_exists(dynamodb):
         else:
             logger.error(f"Error accessing table: {e}")
             raise
+
 
 def delete_dynamodb_table(table_name, use_local=True):
     """
@@ -236,6 +245,7 @@ def delete_dynamodb_table(table_name, use_local=True):
     except Exception as e:
         logger.error(f"Unexpected error deleting table '{table_name}': {e}")
         raise
+
 
 def setup_dynamodb(profile_name=None, use_local=True):
     """Set up DynamoDB and ensure tables exist."""
