@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from utils.api_utils import get_dynamodb_table, get_device_info, create_event_id
 from constants.database import DATA_TABLE, DEVICE_TABLE
 from pydantic_models.air_models import AddAirDeviceData
+from utils.time_utils import get_current_utc_datetime
 
 logger = logging.getLogger("pat_api")
 router = APIRouter()
@@ -30,6 +31,11 @@ async def add_air_data(
             status_code=400, detail="device_name cannot be 'default_device'."
         )
 
+    if data.timestamp:
+        timestamp = data.timestamp
+    else:
+        timestamp = get_current_utc_datetime()
+
     try:
         logger.info(f"Fetching device info for device: {data.device_name}")
         device_info = get_device_info(device_table, data.device_name)
@@ -53,7 +59,7 @@ async def add_air_data(
             "DeviceID": device_info.get("DeviceID"),
             "EventID": create_event_id(),
             "DeviceName": data.device_name,
-            "Timestamp": data.timestamp,
+            "Timestamp": timestamp,
             "PM25": Decimal(str(data.pm25)),
             "PM10": Decimal(str(data.pm10)),
         }

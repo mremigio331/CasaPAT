@@ -4,6 +4,7 @@ import logging
 import json
 from fastapi.responses import JSONResponse
 from utils.api_utils import get_dynamodb_table, get_device_info, create_event_id
+from utils.time_utils import get_current_utc_datetime
 from constants.database import DATA_TABLE, DEVICE_TABLE
 from constants.door import DOOR_OPTIONS
 from pydantic_models.door_models import AddDoorDeviceData
@@ -56,9 +57,11 @@ async def add_door_data(
         raise HTTPException(status_code=500, detail="Internal server error")
 
     # Add timestamp if not provided
-    if data.timestamp is None:
-        data.timestamp = datetime.now(timezone.utc).isoformat()
+    if data.timestamp:
+        timestamp = data.timestamp
+    else:
         logger.info(f"No timestamp provided, using current UTC time: {data.timestamp}")
+        timestamp = get_current_utc_datetime()
 
     try:
         battery_value = Decimal(str(data.battery))
@@ -72,7 +75,7 @@ async def add_door_data(
         "DeviceID": device_info.get("DeviceID"),
         "EventID": create_event_id(),
         "DeviceName": data.device_name,
-        "Timestamp": data.timestamp,
+        "Timestamp": timestamp,
         "DeviceType": "DoorSensor",
         "DoorStatus": data.door_status,
         "Battery": battery_value,
