@@ -57,32 +57,47 @@ export class WALL_EAccessory {
       return;
     }
 
+    if (data.staleness) {
+      this.log.warn(`Stale data detected for device: ${this.device}. Data age: ${data.age} seconds.`);
+      this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusFault, true);
+      callback(null, this.api.hap.Characteristic.AirQuality.UNKNOWN);
+      return;
+    }
+
     try {
       const airQuality = this.parseAirQuality(data);
       this.pm10Characteristic.updateValue(parseFloat(data.PM10));
       this.pm25Characteristic.updateValue(parseFloat(data.PM25));
+      this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusFault, false);
       callback(null, airQuality);
     } catch (error) {
       this.log.error(`Error getting air quality: ${error}`);
       callback(error);
     }
-  }
+}
 
-  async pollData() {
+async pollData() {
     this.log.debug(`Polling data for device: ${this.device}`);
     const data = await this.fetchData();
     if (data) {
+      if (data.staleness) {
+        this.log.warn(`Stale data detected for device: ${this.device}. Data age: ${data.age} seconds.`);
+        this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusFault, true);
+        return;
+      }
+
       try {
         const airQuality = this.parseAirQuality(data);
         this.pm10Characteristic.updateValue(parseFloat(data.PM10));
         this.pm25Characteristic.updateValue(parseFloat(data.PM25));
         this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.AirQuality, airQuality);
-  
+        this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusFault, false);
+
         // Add logging to confirm updates
         this.log.debug(`Updated PM10 for device ${this.device}: ${data.PM10}`);
         this.log.debug(`Updated PM25 for device ${this.device}: ${data.PM25}`);
         this.log.debug(`Updated Air Quality for device ${this.device}: ${airQuality}`);
-  
+
         // Trigger HomeKit notification if air quality is worse than inferior
         const airQualityCode = parseInt(data.code, 10);
         this.log.info(`Air quality code for device ${this.device}: ${airQualityCode}`);
@@ -94,7 +109,7 @@ export class WALL_EAccessory {
         this.log.error(`Error updating air quality: ${error}`);
       }
     }
-  }
+}
 
   parseAirQuality(data) {
     const code = data.code;
