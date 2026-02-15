@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 import logging
 from utils.api_utils import get_dynamodb_table, get_device_info
 from utils.air_utils import format_full_air_info
-from constants.database import DATA_TABLE, DEVICE_TABLE
+from constants.database import DATA_TABLE, DEVICE_TABLE, ISSUE_TABLE
 
 logger = logging.getLogger("pat_api")
 router = APIRouter()
@@ -18,12 +18,17 @@ async def get_full_air_device_info(
     device_name: str,
     data_table=Depends(lambda: get_dynamodb_table(DATA_TABLE)),
     device_table=Depends(lambda: get_dynamodb_table(DEVICE_TABLE)),
+    issue_table=Depends(lambda: get_dynamodb_table(ISSUE_TABLE)),
 ):
     if not data_table:
         logger.error("DynamoDB connection is unavailable.")
         raise HTTPException(status_code=500, detail="DynamoDB is unavailable")
 
     if not device_table:
+        logger.error("DynamoDB connection is unavailable.")
+        raise HTTPException(status_code=500, detail="DynamoDB is unavailable")
+
+    if not issue_table:
         logger.error("DynamoDB connection is unavailable.")
         raise HTTPException(status_code=500, detail="DynamoDB is unavailable")
 
@@ -56,6 +61,15 @@ async def get_full_air_device_info(
         logger.info(f"Retrieving latest info for device: {device_id}")
         all_info = format_full_air_info(data_table, device_id)
 
+        # Retrieve issues for the device
+        logger.info(f"Retrieving issues for device: {device_id}")
+        issues_response = issue_table.query(
+            KeyConditionExpression="DeviceID = :device_id",
+            ExpressionAttributeValues={":device_id": device_id},
+        )
+        issues = issues_response.get("Items", [])
+        logger.info(f"Retrieved {len(issues)} issues for device: {device_id}")
+
         if not all_info:
             logger.info(f"No data found for device: {device_id}")
             raise HTTPException(
@@ -64,7 +78,11 @@ async def get_full_air_device_info(
 
         logger.info(f"Retrieved latest info for {device_id}: {all_info}")
         return JSONResponse(
-            content={"database_entries": all_info, "device_info": device_info},
+            content={
+                "database_entries": all_info,
+                "device_info": device_info,
+                "issues": issues,
+            },
             status_code=200,
         )
 

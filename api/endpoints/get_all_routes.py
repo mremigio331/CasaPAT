@@ -21,6 +21,7 @@ from endpoints.air import (
     get_full_air_device_info,
     register_air_device,
     add_air_data,
+    add_air_issue,
 )
 
 
@@ -47,6 +48,7 @@ def get_all_routes(app):
     # Post
     app.include_router(register_air_device.router, prefix="/air", tags=["Air Quality"])
     app.include_router(add_air_data.router, prefix="/air", tags=["Air Quality"])
+    app.include_router(add_air_issue.router, prefix="/air", tags=["Air Quality"])
 
     # Door specific APIs
     # Get
