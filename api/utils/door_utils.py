@@ -8,12 +8,11 @@ logger = logging.getLogger("pat_api")
 
 def get_latest_door_info(table, device_id: str):
     """Get the latest info for a specific door device."""
-    logger.info(f"Fetching latest info for device_id: {device_id}")
+    logger.debug(f"Fetching latest info for device_id: {device_id}")
     latest_info = get_latest_info(table, device_id)
-    logger.info(f"Latest info: {latest_info}")
 
     if not latest_info:
-        logger.warning(f"No latest info found for device_id: {device_id}")
+        logger.debug(f"No latest info found for device_id: {device_id}")
         return None
 
     try:
@@ -24,7 +23,7 @@ def get_latest_door_info(table, device_id: str):
             "door_status": latest_info.get("DoorStatus"),
             "battery": float(latest_info.get("Battery", 0.0)),
         }
-        logger.info(f"Latest info for device_id {device_id}: {device_info}")
+        logger.debug(f"Latest info found for device_id {device_id}")
         return device_info
     except (IndexError, ValueError, AttributeError) as e:
         logger.error(
@@ -62,7 +61,7 @@ def add_hodor_device(table, device_name):
     """Add a new device to the DynamoDB table."""
     try:
         device_id = generate_device_id()
-        logger.info(f"Generated new device ID: {device_id} for device {device_name}")
+        logger.debug(f"Generated new device ID: {device_id} for device {device_name}")
 
         hodor_item = {
             "DeviceID": f"DEVICE#{device_id}",
@@ -71,10 +70,10 @@ def add_hodor_device(table, device_name):
             "DeviceManufacturer": "Fuffly Slippers? Devices",
             "DeviceModel": "Hodor Sensor",
         }
-        logger.info(f"Adding item to DynamoDB: {hodor_item}")
+        logger.debug(f"Adding item to DynamoDB")
 
         response = table.put_item(Item=hodor_item)
-        logger.info(f"DynamoDB put_item response: {response}")
+        logger.debug(f"Device added successfully")
 
         logger.info(
             f"Added new device with ID {device_id} and name {device_name} to table."

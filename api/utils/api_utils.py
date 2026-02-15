@@ -47,14 +47,13 @@ def unique_device_names(table, device_type):
             ExpressionAttributeValues={":device_type": device_type},
         )
 
-        logger.info(
-            f"Found a totoal of {len(response.get('Items', []))} items for device type '{device_type}'"
+        logger.debug(
+            f"Found {len(response.get('Items', []))} items for device type '{device_type}'"
         )
-        logger.info(f"Items: {response.get('Items', [])}")
 
         # Collect unique DeviceNames
         for item in response.get("Items", []):
-            logger.info(f"Found DeviceID: {item}")
+            logger.debug(f"Found DeviceID: {item.get('DeviceID')}")
             device_name = item.get("DeviceName")
             unique_names.add(device_name)
 
@@ -68,11 +67,11 @@ def unique_device_names(table, device_type):
             )
             for item in response.get("Items", []):
                 device_name = item["DeviceName"]
-                logging.info(f"Found DeviceID: {device_name}")
+                logger.debug(f"Found DeviceID: {device_name}")
                 unique_names.add(device_name)
 
-        logging.info(
-            f"Unique device names for device type '{device_type}': {unique_names}"
+        logger.debug(
+            f"Unique device names for device type '{device_type}': {len(unique_names)} found"
         )
         return list(unique_names)
 
@@ -94,17 +93,17 @@ def get_latest_info(table, device_id):
             return item
 
         else:
-            logging.info(f"No entries found for device {device_id}.")
+            logger.debug(f"No entries found for device {device_id}.")
             return None
     except Exception as e:
-        logging.error(f"Error fetching latest info for device {device_id}: {e}")
+        logger.error(f"Error fetching latest info for device {device_id}: {e}")
         raise
 
 
 def get_device_info(table, device_name):
     """Fetch all entries for a specific device from the DynamoDB table."""
     try:
-        logging.info(f"Fetching entries for device name: {device_name}")
+        logger.debug(f"Fetching entries for device name: {device_name}")
         items = []
         last_evaluated_key = None
 
@@ -125,17 +124,19 @@ def get_device_info(table, device_name):
                 break
 
         if len(items) == 1:
-            logging.info(f"Found the following info for {device_name}: {items[0]}")
+            logger.debug(f"Found info for {device_name}")
             return items[0]
         elif len(items) > 1:
-            logging.warning(f"Multiple entries found for {device_name}: {items}")
+            logger.warning(
+                f"Multiple entries found for {device_name} ({len(items)} total)"
+            )
             return items[0]
         else:
-            logging.warning(f"No entries found for device name: {device_name}")
+            logger.debug(f"No entries found for device name: {device_name}")
             return []
 
     except Exception as e:
-        logging.error(f"Error fetching all info for device name {device_name}: {e}")
+        logger.error(f"Error fetching all info for device name {device_name}: {e}")
         raise
 
 
@@ -143,14 +144,16 @@ def get_all_info(table, device_id):
     """Fetch all entries for a specific device from the DynamoDB table."""
     try:
         response = table.scan(FilterExpression=Attr("DeviceID").eq(device_id))
-        logging.info(f"response: {response}")
         if response.get("Items"):
+            logger.debug(
+                f"Found {len(response['Items'])} entries for device {device_id}"
+            )
             return response["Items"]
         else:
-            logging.warning(f"No entries found for device ID: {device_id}")
+            logger.debug(f"No entries found for device ID: {device_id}")
             return []
     except Exception as e:
-        logging.error(f"Error fetching all info for device ID {device_id}: {e}")
+        logger.error(f"Error fetching all info for device ID {device_id}: {e}")
         raise
 
 

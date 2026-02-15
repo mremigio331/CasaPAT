@@ -16,7 +16,7 @@ LOG_DIR = "/var/log/pat"
 LOG_FILE_API = os.path.join(LOG_DIR, "pat_api.log")
 
 logger = logging.getLogger("pat_api")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 def setup_logging():
@@ -28,10 +28,12 @@ def setup_logging():
     except Exception as e:
         raise SystemExit(f"Critical error: Unable to create log directory: {e}")
 
-    # File Handler
+    # File Handler with size limit (50 MB) to prevent unbounded growth
     file_handler = TimedRotatingFileHandler(
         LOG_FILE_API, when="midnight", backupCount=7
     )
+    file_handler.maxBytes = 52428800  # 50 MB
+    file_handler.backupCount = 7
     file_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     )
@@ -64,13 +66,8 @@ async def log_request_info(request: Request, call_next):
     request_method = request.method
     request_url = request.url.path
 
-    body = await request.body()
-    payload = body.decode("utf-8") if body else "{}"
-
-    logger.info(
-        f"Incoming request from {client_host}: {request_method} {request_url}, "
-        f"Payload: {payload}"
-    )
+    # Only log requests at DEBUG level to avoid massive log files
+    logger.debug(f"Incoming request from {client_host}: {request_method} {request_url}")
 
     response = await call_next(request)
     return response

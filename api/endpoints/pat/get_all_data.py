@@ -4,7 +4,6 @@ import logging
 from utils.api_utils import get_dynamodb_table, fetch_all_items
 from constants.database import DATA_TABLE, DEVICE_TABLE
 
-
 logger = logging.getLogger("pat_api")
 router = APIRouter()
 
