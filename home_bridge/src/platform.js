@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import express from 'express';
 import { WALL_EAccessory } from './wallEAccessory.js';
 import { HodorAccessory } from './hodorAccessory.js';
 
@@ -10,15 +11,60 @@ export class CasaPAT {
     this.api = api;
     this.apiEndpoint = config.apiEndpoint;
     this.accessories = [];
+    this.webhookServer = null;
+    this.webhookPort = config.webhookPort || 8080;
 
     if (api) {
       this.api.on('didFinishLaunching', () => {
         this.log.debug('DidFinishLaunching');
+        this.startWebhookServer();
         this.discoverDevices();
       });
     } else {
       this.log.error('API not available');
     }
+  }
+
+  startWebhookServer() {
+    this.webhookServer = express();
+    this.webhookServer.use(express.json());
+
+    // Handle door webhook updates from the API
+    // When a door sensor reports a state change, the API sends it here
+    this.webhookServer.post('/webhook/doors', (req, res) => {
+      const data = req.body;
+      this.log.debug(`Received door webhook: ${JSON.stringify(data)}`);
+
+      const accessory = this.accessories.find(acc => acc.context.device.DeviceName === data.device_name);
+      if (accessory && accessory.context.type === 'doors') {
+        const doorAccessory = accessory.doorAccessoryInstance;
+        if (doorAccessory) {
+          doorAccessory.updateFromWebhook(data);
+        }
+      }
+
+      res.status(200).json({ status: 'received' });
+    });
+
+    // Handle air quality webhook updates
+    this.webhookServer.post('/webhook/air', (req, res) => {
+      const data = req.body;
+      this.log.debug(`Received air webhook: ${JSON.stringify(data)}`);
+
+      const accessory = this.accessories.find(acc => acc.context.device.DeviceName === data.device_name);
+      if (accessory && accessory.context.type === 'air') {
+        const airAccessory = accessory.airAccessoryInstance;
+        if (airAccessory) {
+          airAccessory.updateFromWebhook(data);
+        }
+      }
+
+      res.status(200).json({ status: 'received' });
+    });
+
+    this.webhookServer.listen(this.webhookPort, () => {
+      this.log.info(`Webhook server started on port ${this.webhookPort}`);
+    });
   }
 
   async discoverDevices() {
@@ -89,11 +135,40 @@ export class CasaPAT {
 
   createAccessoryHandler(type, accessory, deviceInfo) {
     if (type === 'air') {
-      new WALL_EAccessory(this.log, this.api, accessory, deviceInfo.DeviceName, this.apiEndpoint, deviceInfo);
+      const airAccessory = new WALL_EAccessory(this.log, this.api, accessory, deviceInfo.DeviceName, this.apiEndpoint, deviceInfo);
+      accessory.airAccessoryInstance = airAccessory;
     } else if (type === 'doors') {
-      new HodorAccessory(this.log, this.api, accessory, deviceInfo.DeviceName, this.apiEndpoint, deviceInfo);
+      const doorAccessory = new HodorAccessory(this.log, this.api, accessory, deviceInfo.DeviceName, this.apiEndpoint, deviceInfo);
+      accessory.doorAccessoryInstance = doorAccessory;
+      this.registerDoorWebhook(deviceInfo.DeviceName);
     } else {
       this.log.error(`Unknown accessory type: ${type}`);
+    }
+  }
+
+  async registerDoorWebhook(deviceName) {
+    try {
+      const webhookUrl = `http://localhost:${this.webhookPort}/webhook/doors`;
+      this.log.debug(`Registering webhook for device: ${deviceName} at ${webhookUrl}`);
+
+      const response = await fetch(`${this.apiEndpoint}/doors/webhook/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          webhook_url: webhookUrl,
+          device_name: deviceName
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        this.log.info(`Successfully registered webhook for device: ${deviceName}, webhook ID: ${result.webhook_id}`);
+      } else {
+        const errorText = await response.text();
+        this.log.warn(`Failed to register webhook for device: ${deviceName}, status: ${response.status}, error: ${errorText}`);
+      }
+    } catch (error) {
+      this.log.error(`Error registering webhook for device ${deviceName}: ${error}`);
     }
   }
 
