@@ -1,4 +1,6 @@
 import logging
+import requests
+import json
 from utils.api_utils import get_latest_info, get_all_info, generate_device_id
 from botocore.exceptions import ClientError
 from constants.door import DOOR_DEVICE_TYPE
@@ -88,3 +90,83 @@ def add_hodor_device(table, device_name):
     except Exception as e:
         logger.error(f"Unexpected error adding new device {device_name} to table: {e}")
         raise
+
+
+def store_webhook(table, webhook_url: str, device_name: str = None):
+    """Store a webhook URL in DynamoDB for door state notifications."""
+    try:
+        webhook_id = generate_device_id()
+        webhook_item = {
+            "WebhookID": f"WEBHOOK#{webhook_id}",
+            "WebhookURL": webhook_url,
+            "DeviceName": device_name if device_name else "ALL",
+            "Active": True,
+        }
+        logger.debug(f"Storing webhook: {json.dumps(webhook_item, default=str)}")
+        table.put_item(Item=webhook_item)
+        logger.info(f"Webhook registered successfully: {webhook_url}")
+        return webhook_item
+    except Exception as e:
+        logger.error(f"Error storing webhook: {e}")
+        raise
+
+
+def get_active_webhooks(table, device_name: str = None):
+    """Retrieve all active webhooks from DynamoDB."""
+    try:
+        response = table.scan(
+            FilterExpression="Active = :active",
+            ExpressionAttributeValues={":active": True},
+        )
+        webhooks = response.get("Items", [])
+
+        # Filter by device_name if specified
+        if device_name:
+            webhooks = [
+                w
+                for w in webhooks
+                if w.get("DeviceName") == device_name or w.get("DeviceName") == "ALL"
+            ]
+
+        logger.debug(f"Found {len(webhooks)} active webhooks")
+        return webhooks
+    except Exception as e:
+        logger.error(f"Error retrieving webhooks: {e}")
+        return []
+
+
+def trigger_webhooks(table, door_data: dict):
+    """Trigger all registered webhooks with door state data."""
+    try:
+        device_name = door_data.get("device_name")
+        webhooks = get_active_webhooks(table, device_name)
+
+        if not webhooks:
+            logger.debug(f"No webhooks registered for device {device_name}")
+            return
+
+        payload = {
+            "device_name": device_name,
+            "device_id": door_data.get("device_id"),
+            "timestamp": door_data.get("timestamp"),
+            "door_status": door_data.get("door_status"),
+            "battery": door_data.get("battery"),
+        }
+
+        for webhook in webhooks:
+            webhook_url = webhook.get("WebhookURL")
+            try:
+                logger.debug(f"Triggering webhook: {webhook_url}")
+                response = requests.post(
+                    webhook_url,
+                    json=payload,
+                    timeout=5,
+                    headers={"Content-Type": "application/json"},
+                )
+                logger.info(
+                    f"Webhook triggered successfully: {webhook_url} (Status: {response.status_code})"
+                )
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Failed to trigger webhook {webhook_url}: {e}")
+    except Exception as e:
+        logger.error(f"Error triggering webhooks: {e}")

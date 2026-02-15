@@ -5,6 +5,7 @@ import json
 from fastapi.responses import JSONResponse
 from utils.api_utils import get_dynamodb_table, get_device_info, create_event_id
 from utils.time_utils import get_current_utc_datetime
+from utils.door_utils import trigger_webhooks
 from constants.database import DATA_TABLE, DEVICE_TABLE
 from constants.door import DOOR_OPTIONS
 from pydantic_models.door_models import AddDoorDeviceData
@@ -87,6 +88,21 @@ async def add_door_data(
         )
         data_table.put_item(Item=clean_up_data)
         logger.info("Data added successfully.")
+
+        # Trigger webhooks with the new door state
+        door_data = {
+            "device_name": data.device_name,
+            "device_id": (
+                device_info.get("DeviceID", "").split("#")[1]
+                if device_info.get("DeviceID")
+                else ""
+            ),
+            "timestamp": timestamp,
+            "door_status": data.door_status,
+            "battery": data.battery,
+        }
+        trigger_webhooks(device_table, door_data)
+
         return JSONResponse(
             content={"message": "Data added successfully"}, status_code=200
         )

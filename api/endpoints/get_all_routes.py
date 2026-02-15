@@ -8,9 +8,11 @@ from endpoints.pat import (
 from endpoints.doors import (
     add_door_data,
     get_all_door_devices,
+    get_all_doors_current_state,
     get_full_door_device_info,
     door_get_latest_info,
     register_door_device,
+    register_webhook,
 )
 
 from endpoints.air import (
@@ -50,6 +52,9 @@ def get_all_routes(app):
     # Get
     app.include_router(get_all_door_devices.router, prefix="/doors", tags=["Doors"])
     app.include_router(
+        get_all_doors_current_state.router, prefix="/doors", tags=["Doors"]
+    )
+    app.include_router(
         get_full_door_device_info.router, prefix="/doors", tags=["Doors"]
     )
     app.include_router(get_device_info.router, prefix="/doors", tags=["Doors"])
@@ -58,5 +63,6 @@ def get_all_routes(app):
     # Post
     app.include_router(add_door_data.router, prefix="/doors", tags=["Doors"])
     app.include_router(register_door_device.router, prefix="/doors", tags=["Doors"])
+    app.include_router(register_webhook.router, prefix="/doors", tags=["Doors"])
 
     return app

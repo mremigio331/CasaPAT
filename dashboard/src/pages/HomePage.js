@@ -3,7 +3,7 @@ import { Container, Typography, Box, Button, Alert, Grid } from '@mui/material';
 import useGetAllAirDevices from '../hooks/air/useGetAllAirDevices';
 import useGetAllDoorDevices from '../hooks/door/useGetAllDoorDevices';
 import useGetLatestAirReading from '../hooks/air/useGetLatestAirReading';
-import useGetLatestDoorReading from '../hooks/door/useGetLatestDoorReading';
+import useGetAllDoorsCurrentState from '../hooks/door/useGetAllDoorsCurrentState';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DeviceStatusCard from '../components/DeviceStatusCard';
 
@@ -47,41 +47,64 @@ const AirDeviceCard = ({ deviceName }) => {
 };
 
 /**
- * DeviceCard component that fetches and displays latest reading for a door sensor device
+ * DeviceCard component that fetches and displays current state for all door sensors
  */
-const DoorDeviceCard = ({ deviceName }) => {
-  const { 
-    latestDoorReading, 
-    isLatestDoorReadingFetching, 
-    isLatestDoorReadingError, 
-    lastUpdated 
-  } = useGetLatestDoorReading(deviceName);
+const DoorDevicesCard = ({ doorsCurrentState, isLoading, lastUpdated }) => {
+  if (isLoading) {
+    return (
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
+          Door Sensors
+        </Typography>
+        <LoadingSpinner size="small" message="Loading door states..." />
+      </Box>
+    );
+  }
 
-  // Determine status based on data
-  const getStatus = () => {
-    if (isLatestDoorReadingFetching) return 'Loading...';
-    if (isLatestDoorReadingError) return 'Error';
-    if (!latestDoorReading) return 'No data';
-
-    // For door sensors, show open/closed status
-    return latestDoorReading.door_status || 'Unknown';
-  };
-
-  // Determine if device is online based on data availability
-  const isOnline = !isLatestDoorReadingError && !!latestDoorReading;
-
-  // Get timestamp from data or lastUpdated
-  const timestamp = latestDoorReading?.timestamp || lastUpdated || new Date();
+  if (!doorsCurrentState || doorsCurrentState.length === 0) {
+    return (
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
+          Door Sensors
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          No door sensors found
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
-    <DeviceStatusCard
-      deviceId={deviceName}
-      deviceName={deviceName}
-      deviceType="Door Sensor"
-      status={getStatus()}
-      lastUpdated={timestamp}
-      isOnline={isOnline}
-    />
+    <Box sx={{ mt: 4 }}>
+      <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
+        Door Sensors
+      </Typography>
+      <Grid container spacing={3}>
+        {doorsCurrentState.map((doorState) => {
+          const getStatus = () => {
+            if (!doorState.door_status) return 'No data';
+            return doorState.door_status || 'Unknown';
+          };
+
+          const isOnline = !!doorState.door_status;
+          const timestamp = doorState.timestamp || lastUpdated || new Date();
+
+          return (
+            <Grid item xs={12} sm={6} md={4} key={doorState.device_id}>
+              <DeviceStatusCard
+                deviceId={doorState.device_id}
+                deviceName={doorState.device_id}
+                deviceType="Door Sensor"
+                status={getStatus()}
+                lastUpdated={timestamp}
+                isOnline={isOnline}
+                battery={doorState.battery}
+              />
+            </Grid>
+          );
+        })}
+      </Grid>
+    </Box>
   );
 };
 
@@ -99,16 +122,17 @@ const HomePage = () => {
   } = useGetAllAirDevices();
 
   const { 
-    doorDevices, 
-    isDoorDevicesFetching, 
-    isDoorDevicesError, 
-    doorDevicesError, 
-    doorDevicesRefetch 
-  } = useGetAllDoorDevices();
+    doorsCurrentState, 
+    isDoorsCurrentStateFetching, 
+    isDoorsCurrentStateError, 
+    doorsCurrentStateError, 
+    doorsCurrentStateRefetch,
+    lastUpdated 
+  } = useGetAllDoorsCurrentState();
 
-  const isLoading = isAirDevicesFetching || isDoorDevicesFetching;
-  const isError = isAirDevicesError || isDoorDevicesError;
-  const error = isAirDevicesError ? airDevicesError : isDoorDevicesError ? doorDevicesError : null;
+  const isLoading = isAirDevicesFetching || isDoorsCurrentStateFetching;
+  const isError = isAirDevicesError || isDoorsCurrentStateError;
+  const error = isAirDevicesError ? airDevicesError : isDoorsCurrentStateError ? doorsCurrentStateError : null;
 
   // Display loading spinner while fetching devices
   if (isLoading) {
@@ -129,7 +153,7 @@ const HomePage = () => {
           action={
             <Button color="inherit" size="small" onClick={() => {
               airDevicesRefetch();
-              doorDevicesRefetch();
+              doorsCurrentStateRefetch();
             }}>
               Retry
             </Button>
@@ -167,25 +191,12 @@ const HomePage = () => {
         )}
       </Box>
 
-      {/* Door Sensors Section */}
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
-          Door Sensors
-        </Typography>
-        {doorDevices.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            No door sensors found
-          </Typography>
-        ) : (
-          <Grid container spacing={3}>
-            {doorDevices.map((deviceName) => (
-              <Grid item xs={12} sm={6} md={4} key={deviceName}>
-                <DoorDeviceCard deviceName={deviceName} />
-              </Grid>
-            ))}
-          </Grid>
-        )}
-      </Box>
+      {/* Door Sensors Section - Now using webhook endpoint */}
+      <DoorDevicesCard 
+        doorsCurrentState={doorsCurrentState} 
+        isLoading={isDoorsCurrentStateFetching}
+        lastUpdated={lastUpdated}
+      />
     </Container>
   );
 };
