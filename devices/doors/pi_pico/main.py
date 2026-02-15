@@ -4,9 +4,21 @@ import json
 import urequests as requests
 import time
 import gc
+import sys
 
 # Load configuration from file
 CONFIG_FILE = "door_config.json"
+
+# Watchdog configuration
+WATCHDOG_TIMEOUT = 8  # Reset if no activity for 8 seconds (max allowed is ~8.4s)
+MEMORY_CHECK_INTERVAL = 30  # Check memory every 30 seconds
+MIN_FREE_MEMORY = 50000  # Reboot if free memory below 50KB
+RESTART_INTERVAL = 43200  # Restart device every 12 hours (in seconds)
+REQUEST_TIMEOUT = 10  # HTTP request timeout in seconds
+CONSECUTIVE_FAILURES_LIMIT = 10  # Reboot after 10 consecutive failures
+
+# Initialize watchdog
+wdt = machine.WDT(timeout=WATCHDOG_TIMEOUT * 1000)  # Convert to milliseconds
 
 """
 Config file format:
@@ -33,6 +45,11 @@ wifi_password = config.get("wifi_password", "your_wifi_password")
 server_url = config.get("server_url", "http://pat.local:5000")
 GPIO_PIN = config.get("gpio_pin", 16)
 POLL_INTERVAL = config.get("poll_interval", 0.5)
+
+# Runtime tracking
+start_time = time.time()
+last_memory_check = 0
+consecutive_failures = 0
 
 print(
     f"Starting Door Sensor with Device ID: {device_name}, GPIO Pin: {GPIO_PIN}, Server URL: {server_url}"
@@ -66,9 +83,11 @@ class DoorSensor:
         self.poll_interval = poll_interval
         self.current_state = self.pin.value()
         self.debug = debug
+        self.consecutive_failures = 0
         print(f"Magnetic sensor initialized on GPIO pin {pin}.")
 
     def send_state(self, state):
+        global consecutive_failures
         gc.collect()
         payload = {
             "device_name": device_name,
@@ -83,19 +102,63 @@ class DoorSensor:
                 headers = {"Content-Type": "application/json"}
 
                 gc.collect()  # Free memory again before request
-                response = requests.post(url, json=payload, headers=headers)
+                # Send request with timeout
+                response = requests.post(
+                    url, json=payload, headers=headers, timeout=REQUEST_TIMEOUT
+                )
 
                 print(f"Data sent with status code: {response.status_code}")
-
                 response.close()
                 gc.collect()
+
+                # Reset failure counter on success
+                consecutive_failures = 0
+
             except Exception as e:
                 print(f"Failed to send data: {e}")
+                consecutive_failures += 1
+                if consecutive_failures >= CONSECUTIVE_FAILURES_LIMIT:
+                    print(
+                        f"Consecutive failures limit ({CONSECUTIVE_FAILURES_LIMIT}) reached. Rebooting..."
+                    )
+                    machine.reset()
+
+    def check_memory_and_uptime(self):
+        """Check memory usage and uptime, reboot if needed"""
+        global last_memory_check, start_time
+
+        current_time = time.time()
+
+        # Check memory every MEMORY_CHECK_INTERVAL seconds
+        if current_time - last_memory_check > MEMORY_CHECK_INTERVAL:
+            last_memory_check = current_time
+            gc.collect()
+            free_mem = gc.mem_free()
+
+            print(f"Memory status: {free_mem} bytes free")
+
+            if free_mem < MIN_FREE_MEMORY:
+                print(f"Critical memory low: {free_mem} bytes. Rebooting...")
+                machine.reset()
+
+        # Check if device has been running too long
+        uptime = current_time - start_time
+        if uptime > RESTART_INTERVAL:
+            print(
+                f"Uptime {uptime}s exceeded {RESTART_INTERVAL}s. Performing scheduled restart..."
+            )
+            machine.reset()
 
     def run(self):
         print("Starting sensor monitoring...")
         try:
             while True:
+                # Feed watchdog to prevent timeout
+                wdt.feed()
+
+                # Check health status
+                self.check_memory_and_uptime()
+
                 state = self.pin.value()
                 if state != self.current_state:
                     self.current_state = state
