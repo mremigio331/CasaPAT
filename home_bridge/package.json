@@ -2,8 +2,7 @@
   "name": "homebridge-casapat",
   "version": "1.0.0",
   "description": "Homebridge app to connect devices to Apple Home.",
-  "type": "module",
-  "main": "src/index.js",
+  "main": "index.js",
   "scripts": {
     "lint": "eslint src/**/*.js --max-warnings=0",
     "lint:fix": "eslint src/**/*.js --fix",

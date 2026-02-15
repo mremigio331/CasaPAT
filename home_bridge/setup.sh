@@ -14,6 +14,6 @@ npm run build
 
 sudo hb-service link
 
-sudo npm link
-sudo npm link homebridge-casapat
+sudo cp -r . /var/lib/homebridge/node_modules/homebridge-casapat
+sudo chown -R homebridge:homebridge /var/lib/homebridge/node_modules/homebridge-casapat
 sudo systemctl restart homebridge
