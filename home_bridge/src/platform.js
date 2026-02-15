@@ -13,7 +13,7 @@ export class CasaPAT {
 
     if (api) {
       this.api.on('didFinishLaunching', () => {
-        this.log.info('DidFinishLaunching');
+        this.log.debug('DidFinishLaunching');
         this.discoverDevices();
       });
     } else {
@@ -22,7 +22,7 @@ export class CasaPAT {
   }
 
   async discoverDevices() {
-    this.log.info('Discovering devices...');
+    this.log.debug('Discovering devices...');
 
     const sensorTypes = [
       { type: 'air', endpoint: `${this.apiEndpoint}/air/get_devices/air_devices` },
@@ -31,7 +31,7 @@ export class CasaPAT {
 
     for (const sensor of sensorTypes) {
       try {
-        this.log.info(`Fetching ${sensor.type} devices from ${sensor.endpoint}`);
+        this.log.debug(`Fetching ${sensor.type} devices from ${sensor.endpoint}`);
         const response = await fetch(sensor.endpoint);
         const devicesData = await response.json();
 
@@ -40,7 +40,7 @@ export class CasaPAT {
             await this.fetchDeviceInfoAndAdd(device, sensor.type);
           }
         } else {
-          this.log.warn(`Invalid response format for ${sensor.type} devices: ${JSON.stringify(devicesData)}`);
+          this.log.error(`Invalid response format for ${sensor.type} devices: ${JSON.stringify(devicesData)}`);
         }
       } catch (error) {
         this.log.error(`Error discovering ${sensor.type} devices: ${error}`);
@@ -60,10 +60,10 @@ export class CasaPAT {
       const deviceName = deviceInfo.device_info.DeviceName;
 
       if (deviceID && deviceName) {
-        this.log.info(`Fetched device info for ${deviceName}: ${JSON.stringify(deviceInfo)}`);
+        this.log.debug(`Fetched device info for ${deviceName}: ${JSON.stringify(deviceInfo)}`);
         this.addAccessory(deviceID, deviceName, type, deviceInfo.device_info);
       } else {
-        this.log.warn(`Invalid device info format for ${device}: ${JSON.stringify(deviceInfo)}`);
+        this.log.error(`Invalid device info format for ${device}: ${JSON.stringify(deviceInfo)}`);
       }
     } catch (error) {
       this.log.error(`Error fetching device info for ${device}: ${error}`);
@@ -98,7 +98,7 @@ export class CasaPAT {
   }
 
   configureAccessory(accessory) {
-    this.log.info(`Configuring accessory: ${accessory.displayName}`);
+    this.log.debug(`Configuring accessory: ${accessory.displayName}`);
     this.accessories.push(accessory);
   }
 }

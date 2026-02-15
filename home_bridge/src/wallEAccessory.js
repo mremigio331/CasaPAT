@@ -100,7 +100,7 @@ async pollData() {
 
         // Trigger HomeKit notification if air quality is worse than inferior
         const airQualityCode = parseInt(data.code, 10);
-        this.log.info(`Air quality code for device ${this.device}: ${airQualityCode}`);
+        this.log.debug(`Air quality code for device ${this.device}: ${airQualityCode}`);
 
         if (data.code >= 4) { // Assuming code 4 and 5 are worse than inferior
           this.triggerHomeKitNotification(airQuality, data);
@@ -117,19 +117,19 @@ async pollData() {
 
     switch (code) {
       case 1:
-        this.log.info(`Air quality for device ${this.device} is EXCELLENT`);
+        this.log.debug(`Air quality for device ${this.device} is EXCELLENT`);
         return this.api.hap.Characteristic.AirQuality.EXCELLENT;
       case 2:
-        this.log.info(`Air quality for device ${this.device} is GOOD`);
+        this.log.debug(`Air quality for device ${this.device} is GOOD`);
         return this.api.hap.Characteristic.AirQuality.GOOD;
       case 3:
-        this.log.info(`Air quality for device ${this.device} is FAIR`);
+        this.log.debug(`Air quality for device ${this.device} is FAIR`);
         return this.api.hap.Characteristic.AirQuality.FAIR;
       case 4:
-        this.log.info(`Air quality for device ${this.device} is INFERIOR`);
+        this.log.debug(`Air quality for device ${this.device} is INFERIOR`);
         return this.api.hap.Characteristic.AirQuality.INFERIOR;
       case 5:
-        this.log.info(`Air quality for device ${this.device} is POOR`);
+        this.log.debug(`Air quality for device ${this.device} is POOR`);
         return this.api.hap.Characteristic.AirQuality.POOR;
       default:
         this.log.warn(`Unknown air quality code for device ${this.device}: ${code}`);
@@ -140,6 +140,6 @@ async pollData() {
   triggerHomeKitNotification(airQuality, data) {
     // This method will trigger a HomeKit notification by updating the characteristic value
     this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusActive, true);
-    this.log.info(`Triggered HomeKit notification for poor air quality: ${airQuality}`);
+    this.log.debug(`Triggered HomeKit notification for poor air quality: ${airQuality}`);
   }
 }

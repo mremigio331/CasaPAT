@@ -37,6 +37,8 @@ dynamodb-local-metadata.json
 .vscode/
 *.swp
 *.swo
+.kiro/
+.kiro-server/
 
 # OS-specific files
 .DS_Store
