@@ -1,10 +1,13 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from middleware.request_id_middleware import RequestIdMiddleware
+from middleware.service_log_middleware import ServiceLogMiddleware
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from utils.dynamodb_utils import setup_dynamodb
 from utils.api_utils import get_dynamodb_table
 from endpoints.get_all_routes import get_all_routes
+from utils.request_context import RequestIdFilter
 import os
 import uvicorn
 import sys
@@ -13,45 +16,33 @@ sys.dont_write_bytecode = True
 
 # Setup logging
 LOG_DIR = "/var/log/pat"
-LOG_FILE_API = os.path.join(LOG_DIR, "pat_api.log")
+LOG_FILE_APP = os.path.join(LOG_DIR, "application.log")
 
 logger = logging.getLogger("pat_api")
 logger.setLevel(logging.DEBUG)
 
 
 def setup_logging():
-    """Ensure the log directory exists and set up logging handlers."""
-    try:
-        if not os.path.exists(LOG_DIR):
-            os.makedirs(LOG_DIR)
-            logger.info(f"Log directory created at {LOG_DIR}.")
-    except Exception as e:
-        raise SystemExit(f"Critical error: Unable to create log directory: {e}")
+    app_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(request_id)s - %(message)s")
 
-    # File Handler with size limit (50 MB) to prevent unbounded growth
-    file_handler = TimedRotatingFileHandler(
-        LOG_FILE_API, when="midnight", backupCount=7
-    )
-    file_handler.maxBytes = 52428800  # 50 MB
-    file_handler.backupCount = 7
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    )
-    file_handler.suffix = "%Y-%m-%d"
+    # Application log (pat_api logger)
+    app_file_handler = TimedRotatingFileHandler(LOG_FILE_APP, when="midnight", backupCount=7)
+    app_file_handler.setFormatter(app_formatter)
+    app_file_handler.suffix = "%Y-%m-%d"
+    app_file_handler.addFilter(RequestIdFilter())
 
-    # Console Handler
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    )
+    console_handler.setFormatter(app_formatter)
+    console_handler.addFilter(RequestIdFilter())
 
-    # Add handlers if not already present
     if not logger.hasHandlers():
-        logger.addHandler(file_handler)
+        logger.addHandler(app_file_handler)
         logger.addHandler(console_handler)
 
 
-setup_logging()
+
+
+
 
 app = FastAPI(
     title="PAT API",
@@ -59,18 +50,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-
-@app.middleware("http")
-async def log_request_info(request: Request, call_next):
-    client_host = request.client.host
-    request_method = request.method
-    request_url = request.url.path
-
-    # Only log requests at DEBUG level to avoid massive log files
-    logger.debug(f"Incoming request from {client_host}: {request_method} {request_url}")
-
-    response = await call_next(request)
-    return response
 
 
 app.add_middleware(
@@ -80,11 +59,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestIdMiddleware)
+app.add_middleware(ServiceLogMiddleware)
+
+setup_logging()
 logger.info("CORS configured for local development (open for all origins).")
 
 try:
     logger.info("Initializing DynamoDB Local.")
-    dynamodb, data_table, devices_table = setup_dynamodb(use_local=True)
+    dynamodb, data_table, devices_table, issues_table = setup_dynamodb(use_local=True)
 except Exception as e:
     logger.error(f"Failed to set up DynamoDB: {e}")
     raise SystemExit("Critical error: Unable to initialize DynamoDB. Exiting.")
@@ -94,6 +77,7 @@ app = get_all_routes(app)
 app.dependency_overrides[get_dynamodb_table] = lambda: {
     "data_table": data_table,
     "devices_table": devices_table,
+    "issues_table": issues_table,
 }
 
 if __name__ == "__main__":

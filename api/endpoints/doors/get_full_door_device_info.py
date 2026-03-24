@@ -71,5 +71,5 @@ async def get_full_door_device_info(
         raise e  # Re-raise expected HTTPExceptions
 
     except Exception as e:
-        logger.error(f"Error retrieving latest info: {e}")
+        logger.error(f"Error retrieving latest info: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

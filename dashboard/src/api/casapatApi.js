@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // Base URL for CasaPAT API
-export const BASE_URL = 'http://pat.local:5000';
+const domain = window.location.hostname.trim()
+export const BASE_URL = domain.includes('tail') ? 'http://pat.tailf035ad.ts.net:5000' : 'http://pat.local:5000';
 
 /**
  * Make a GET request to the CasaPAT API

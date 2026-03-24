@@ -5,7 +5,7 @@ import tarfile
 import logging
 from botocore.exceptions import ClientError
 import boto3
-from constants.database import DATA_TABLE, DEVICE_TABLE
+from constants.database import DATA_TABLE, DEVICE_TABLE, ISSUE_TABLE
 
 logger = logging.getLogger("pat_api")
 
@@ -208,6 +208,32 @@ def ensure_devices_table_exists(dynamodb):
             raise
 
 
+def ensure_issues_table_exists(dynamodb):
+    """Ensure the PAT issues table exists."""
+    try:
+        table = dynamodb.Table(ISSUE_TABLE)
+        table.load()
+        logger.info(f"Table '{ISSUE_TABLE}' already exists.")
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ResourceNotFoundException":
+            logger.info(f"Table '{ISSUE_TABLE}' not found. Creating...")
+            return create_dynamodb_table(
+                dynamodb,
+                ISSUE_TABLE,
+                [
+                    {"AttributeName": "DeviceID", "KeyType": "HASH"},
+                    {"AttributeName": "EventID", "KeyType": "RANGE"},
+                ],
+                [
+                    {"AttributeName": "DeviceID", "AttributeType": "S"},
+                    {"AttributeName": "EventID", "AttributeType": "S"},
+                ],
+            )
+        else:
+            logger.error(f"Error accessing table: {e}")
+            raise
+
+
 def delete_dynamodb_table(table_name, use_local=True):
     """
     Delete a DynamoDB table by name.
@@ -252,4 +278,5 @@ def setup_dynamodb(profile_name=None, use_local=True):
     dynamodb = initialize_dynamodb(profile_name, use_local)
     data_table = ensure_data_table_exists(dynamodb)
     devices_table = ensure_devices_table_exists(dynamodb)
-    return dynamodb, data_table, devices_table
+    issues_table = ensure_issues_table_exists(dynamodb)
+    return dynamodb, data_table, devices_table, issues_table

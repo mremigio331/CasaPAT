@@ -33,18 +33,28 @@ export class HodorAccessory {
   }
 
   async fetchData() {
-    this.log.debug(`Fetching data for door sensor: ${this.device}`);
+    const url = `${this.apiEndpoint}/doors/info/latest?device_name=${this.device}`;
+    this.log.debug(`Fetching data for door sensor: ${this.device} from ${url}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000); // 4s timeout
     try {
-      const response = await fetch(`${this.apiEndpoint}/doors/info/latest?device_name=${this.device}`);
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) {
+        this.log.error(`HTTP error for ${this.device}: status=${response.status} url=${url}`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
       this.log.debug(`Fetched data for door sensor ${this.device}: ${JSON.stringify(data)}`);
       return data.latest_info;
     } catch (error) {
-      this.log.error(`Error fetching data for ${this.device}: ${error}`);
+      if (error.name === 'AbortError') {
+        this.log.error(`Timeout fetching data for ${this.device}: request exceeded 4s (url=${url})`);
+      } else {
+        this.log.error(`Error fetching data for ${this.device}: ${error.message} (type=${error.type ?? error.name}, url=${url})`);
+      }
       return null;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

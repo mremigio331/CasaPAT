@@ -24,6 +24,10 @@ from endpoints.air import (
     add_air_issue,
 )
 
+from endpoints.admin import (
+    restart_pi
+)
+
 
 def get_all_routes(app):
     """Register all routers to the FastAPI app."""
@@ -37,6 +41,9 @@ def get_all_routes(app):
     app.include_router(delete_all_data.router, prefix="/pat", tags=["General"])
     app.include_router(delete_device.router, prefix="/pat", tags=["General"])
 
+    # Admin
+    # Post
+    app.include_router(restart_pi.router, prefix="/admin", tags=["Admin"])
     # Air Quality specific APIs
     # Get
     app.include_router(get_all_air_devices.router, prefix="/air", tags=["Air Quality"])

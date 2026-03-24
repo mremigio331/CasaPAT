@@ -108,22 +108,53 @@ class AirQualitySensor:
             "pm10": round(pm10, 1),
         }
 
-        if self.debug:
-            print(f"[DEBUG] Payload: {payload}")
-        else:
-            try:
-                url = f"{self.server_url}/air/add_data"
-                headers = {"Content-Type": "application/json"}
+        print(f"[INFO] Sending data payload: {payload}")
 
-                gc.collect()
-                response = requests.post(url, json=payload, headers=headers)
+        try:
+            url = f"{self.server_url}/air/add_data"
+            headers = {"Content-Type": "application/json"}
 
-                print(f"Data sent with status code: {response.status_code}")
+            gc.collect()
+            response = requests.post(url, json=payload, headers=headers)
 
-                response.close()
-                gc.collect()
-            except Exception as e:
-                print(f"Failed to send data: {e}")
+            print(f"[INFO] Response status code: {response.status_code}")
+            print(f"[INFO] Response body: {response.text}")
+
+            response.close()
+            gc.collect()
+        except Exception as e:
+            print(f"[ERROR] Failed to send data: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def send_issue(self, exception_type, exception_message):
+        """Send sensor issue report to the server."""
+        gc.collect()
+
+        payload = {
+            "device_name": self.device_name,
+            "exception": exception_type,
+            "exception_message": exception_message,
+        }
+
+        print(f"[INFO] Sending issue payload: {payload}")
+
+        try:
+            url = f"{self.server_url}/air/add_issue"
+            headers = {"Content-Type": "application/json"}
+
+            gc.collect()
+            response = requests.post(url, json=payload, headers=headers)
+
+            print(f"[INFO] Issue response status code: {response.status_code}")
+            print(f"[INFO] Issue response body: {response.text}")
+
+            response.close()
+            gc.collect()
+        except Exception as e:
+            print(f"[ERROR] Failed to send issue report: {e}")
+            import traceback
+            traceback.print_exc()
 
     def run(self):
         print("Starting air quality monitoring...")
@@ -135,6 +166,7 @@ class AirQualitySensor:
                     self.send_data(pm25, pm10)
                 else:
                     print("Failed to read sensor data")
+                    self.send_issue("SensorReadError", "Failed to read sensor data")
 
                 self.poll_count += 1
 

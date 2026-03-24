@@ -44,10 +44,15 @@ def format_all_door_info(table, device_id: str):
     try:
         formatted_info = []
         for item in all_info:
+            device_id_raw = item.get("DeviceID", "")
+            timestamp_raw = item.get("Timestamp", "")
+            device_id_parts = device_id_raw.split("#")
+            if len(device_id_parts) < 2:
+                logger.warning(f"Unexpected DeviceID format '{device_id_raw}' in item: {item}")
             formatted_info.append(
                 {
-                    "device_id": item.get("DeviceID", "").split("#")[1],
-                    "timestamp": item.get("Timestamp", "").split("#")[1],
+                    "device_id": device_id_parts[1] if len(device_id_parts) >= 2 else device_id_raw,
+                    "timestamp": timestamp_raw,
                     "door_status": item.get("DoorStatus"),
                     "battery": float(item.get("Battery", 0.0)),
                 }
@@ -55,7 +60,7 @@ def format_all_door_info(table, device_id: str):
         return formatted_info
 
     except (IndexError, ValueError, AttributeError, TypeError) as e:
-        logging.error(f"Error processing door info for device {device_id}: {e}")
+        logging.error(f"Error processing door info for device {device_id}: {e}", exc_info=True)
         raise ValueError(f"Error processing data: {e}")
 
 

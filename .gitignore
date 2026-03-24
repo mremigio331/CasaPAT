@@ -62,3 +62,4 @@ htmlcov/
 .ipynb_checkpoints/
 
 *_config.json
+*.pem
