@@ -5,11 +5,11 @@ sudo apt install npm
 
 sudo apt install curl -y
 
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
 sudo npm install -g homebridge
 
-npm install rimraf --save-dev
+npm install
 npm run build
 
 sudo hb-service link

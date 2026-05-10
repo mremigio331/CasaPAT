@@ -19,6 +19,8 @@
     "homebridge": ">=2.0.0"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.28.6",
+    "express": "^5.2.1",
     "node-fetch": "^3.0.0"
   },
   "devDependencies": {
