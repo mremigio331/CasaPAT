@@ -26,16 +26,27 @@ export class HodorAccessory {
     this.batteryService = this.accessory.getService(this.api.hap.Service.BatteryService) ||
                           this.accessory.addService(this.api.hap.Service.BatteryService, 'Hodor Battery');
 
-    // Fetch initial state on startup to populate HomeKit immediately
-    // Subsequent updates will be delivered via webhooks
+    this.doorSensorService.getCharacteristic(this.api.hap.Characteristic.ContactSensorState)
+      .onGet(() => {
+        if (this.cachedDoorState === null) {
+          return this.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
+        }
+        return this.cachedDoorState;
+      });
+
     this.fetchInitialState();
+    this.pollInterval = setInterval(() => this.fetchData(), 5 * 60 * 1000);
+  }
+
+  fetchInitialState() {
+    this.fetchData();
   }
 
   async fetchData() {
     const url = `${this.apiEndpoint}/doors/info/latest?device_name=${this.device}`;
     this.log.debug(`Fetching data for door sensor: ${this.device} from ${url}`);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000); // 4s timeout
+    const timeout = setTimeout(() => controller.abort(), 4000);
     try {
       const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) {
@@ -44,10 +55,8 @@ export class HodorAccessory {
       }
       const data = await response.json();
       const latestInfo = data.latest_info;
-      
+
       if (latestInfo) {
-        // Initialize cache with current state
-        // Future updates will come via webhooks instead of polling
         this.updateFromWebhook({
           door_status: latestInfo.door_status,
           battery: latestInfo.battery,
@@ -61,36 +70,25 @@ export class HodorAccessory {
       } else {
         this.log.error(`Error fetching data for ${this.device}: ${error.message} (type=${error.type ?? error.name}, url=${url})`);
       }
-      return null;
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  async getDoorState(callback) {
-    const data = await this.fetchData();
-    this.log.debug(`Door: ${this.device}, Data: ${JSON.stringify(data)}`);
-    if (!data) {
-      this.log.warn(`No data received for door sensor: ${this.device}`);
-      callback(null, this.api.hap.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED);
-      return;
-    }
-
+  updateFromWebhook(data) {
     try {
       const doorState = this.parseDoorState(data.door_status);
-      const batteryLevel = parseInt(data.battery, 10);
+      const batteryLevel = Math.round(parseFloat(data.battery));
 
-      // Update cache with new state
       this.cachedDoorState = doorState;
       this.cachedBatteryLevel = batteryLevel;
 
-      // Push updates to HomeKit - this will notify Home app of status changes
       this.doorSensorService.updateCharacteristic(this.api.hap.Characteristic.ContactSensorState, doorState);
       this.batteryService.updateCharacteristic(this.api.hap.Characteristic.BatteryLevel, batteryLevel);
 
       this.log.info(`Updated door state for ${this.device}: ${data.door_status}, Battery: ${batteryLevel}%`);
     } catch (error) {
-      this.log.error(`Error updating from webhook: ${error}`);
+      this.log.error(`Error updating from webhook for ${this.device}: ${error}`);
     }
   }
   parseDoorState(state) {

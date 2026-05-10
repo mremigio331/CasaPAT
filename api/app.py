@@ -23,10 +23,14 @@ logger.setLevel(logging.DEBUG)
 
 
 def setup_logging():
-    app_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(request_id)s - %(message)s")
+    app_formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(request_id)s - %(message)s"
+    )
 
     # Application log (pat_api logger)
-    app_file_handler = TimedRotatingFileHandler(LOG_FILE_APP, when="midnight", backupCount=7)
+    app_file_handler = TimedRotatingFileHandler(
+        LOG_FILE_APP, when="midnight", backupCount=7
+    )
     app_file_handler.setFormatter(app_formatter)
     app_file_handler.suffix = "%Y-%m-%d"
     app_file_handler.addFilter(RequestIdFilter())
@@ -40,16 +44,11 @@ def setup_logging():
         logger.addHandler(console_handler)
 
 
-
-
-
-
 app = FastAPI(
     title="PAT API",
     description="API for PAT with DynamoDB integration",
     version="1.0.0",
 )
-
 
 
 app.add_middleware(
@@ -67,7 +66,9 @@ logger.info("CORS configured for local development (open for all origins).")
 
 try:
     logger.info("Initializing DynamoDB Local.")
-    dynamodb, data_table, devices_table, issues_table = setup_dynamodb(use_local=True)
+    dynamodb, data_table, devices_table, issues_table, webhooks_table = setup_dynamodb(
+        use_local=True
+    )
 except Exception as e:
     logger.error(f"Failed to set up DynamoDB: {e}")
     raise SystemExit("Critical error: Unable to initialize DynamoDB. Exiting.")

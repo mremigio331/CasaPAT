@@ -5,7 +5,7 @@ import tarfile
 import logging
 from botocore.exceptions import ClientError
 import boto3
-from constants.database import DATA_TABLE, DEVICE_TABLE, ISSUE_TABLE
+from constants.database import DATA_TABLE, DEVICE_TABLE, ISSUE_TABLE, WEBHOOK_TABLE
 
 logger = logging.getLogger("pat_api")
 
@@ -234,6 +234,26 @@ def ensure_issues_table_exists(dynamodb):
             raise
 
 
+def ensure_webhooks_table_exists(dynamodb):
+    """Ensure the PAT webhooks table exists."""
+    try:
+        table = dynamodb.Table(WEBHOOK_TABLE)
+        table.load()
+        logger.info(f"Table '{WEBHOOK_TABLE}' already exists.")
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ResourceNotFoundException":
+            logger.info(f"Table '{WEBHOOK_TABLE}' not found. Creating...")
+            return create_dynamodb_table(
+                dynamodb,
+                WEBHOOK_TABLE,
+                [{"AttributeName": "WebhookID", "KeyType": "HASH"}],
+                [{"AttributeName": "WebhookID", "AttributeType": "S"}],
+            )
+        else:
+            logger.error(f"Error accessing table: {e}")
+            raise
+
+
 def delete_dynamodb_table(table_name, use_local=True):
     """
     Delete a DynamoDB table by name.
@@ -279,4 +299,5 @@ def setup_dynamodb(profile_name=None, use_local=True):
     data_table = ensure_data_table_exists(dynamodb)
     devices_table = ensure_devices_table_exists(dynamodb)
     issues_table = ensure_issues_table_exists(dynamodb)
-    return dynamodb, data_table, devices_table, issues_table
+    webhooks_table = ensure_webhooks_table_exists(dynamodb)
+    return dynamodb, data_table, devices_table, issues_table, webhooks_table

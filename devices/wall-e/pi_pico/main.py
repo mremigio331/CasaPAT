@@ -78,10 +78,6 @@ class AirQualitySensor:
         self.poll_interval = poll_interval
         self.debug = debug
         self.uart = UART(1, baudrate=9600, tx=Pin(tx_pin), rx=Pin(rx_pin))
-        self.poll_count = 0
-        self.reboot_interval = (
-            144  # Reboot after 144 polls (12 hours with 300s interval)
-        )
         print("Air Quality Sensor initialized.")
 
     def read_pm_sensor(self):
@@ -125,6 +121,7 @@ class AirQualitySensor:
         except Exception as e:
             print(f"[ERROR] Failed to send data: {e}")
             import traceback
+
             traceback.print_exc()
 
     def send_issue(self, exception_type, exception_message):
@@ -154,36 +151,22 @@ class AirQualitySensor:
         except Exception as e:
             print(f"[ERROR] Failed to send issue report: {e}")
             import traceback
+
             traceback.print_exc()
 
     def run(self):
         print("Starting air quality monitoring...")
-        try:
-            while True:
-                pm25, pm10 = self.read_pm_sensor()
-                if pm25 is not None and pm10 is not None:
-                    print(f"PM2.5: {pm25}, PM10: {pm10}")
-                    self.send_data(pm25, pm10)
-                else:
-                    print("Failed to read sensor data")
-                    self.send_issue("SensorReadError", "Failed to read sensor data")
+        pm25, pm10 = self.read_pm_sensor()
+        if pm25 is not None and pm10 is not None:
+            print(f"PM2.5: {pm25}, PM10: {pm10}")
+            self.send_data(pm25, pm10)
+        else:
+            print("Failed to read sensor data")
+            self.send_issue("SensorReadError", "Failed to read sensor data")
 
-                self.poll_count += 1
-
-                # Check if we need to reboot to refresh system resources
-                if self.poll_count >= self.reboot_interval:
-                    print(
-                        f"Reboot interval ({self.reboot_interval} polls) reached. Rebooting..."
-                    )
-                    gc.collect()
-                    time.sleep(2)  # Brief pause before reboot
-                    machine.reset()
-
-                time.sleep(self.poll_interval)
-        except KeyboardInterrupt:
-            print("Keyboard interrupt detected. Exiting...")
-        finally:
-            print("Program terminated.")
+        print(f"Sleeping {self.poll_interval}s then rebooting...")
+        time.sleep(self.poll_interval)
+        machine.reset()
 
 
 # Main execution

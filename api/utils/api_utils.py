@@ -10,7 +10,7 @@ import string
 logger = logging.getLogger("pat_api")
 
 
-def get_dynamodb_table(table_name: Literal["PATData", "PATDevices"]):
+def get_dynamodb_table(table_name: Literal["PATData", "PATDevices", "PATWebhooks"]):
     """Returns the specified DynamoDB table instance connected to the local environment."""
 
     dynamodb = boto3.resource(

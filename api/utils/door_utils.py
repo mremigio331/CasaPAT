@@ -2,6 +2,7 @@ import logging
 import requests
 import json
 from utils.api_utils import get_latest_info, get_all_info, generate_device_id
+from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 from constants.door import DOOR_DEVICE_TYPE
 
@@ -48,10 +49,16 @@ def format_all_door_info(table, device_id: str):
             timestamp_raw = item.get("Timestamp", "")
             device_id_parts = device_id_raw.split("#")
             if len(device_id_parts) < 2:
-                logger.warning(f"Unexpected DeviceID format '{device_id_raw}' in item: {item}")
+                logger.warning(
+                    f"Unexpected DeviceID format '{device_id_raw}' in item: {item}"
+                )
             formatted_info.append(
                 {
-                    "device_id": device_id_parts[1] if len(device_id_parts) >= 2 else device_id_raw,
+                    "device_id": (
+                        device_id_parts[1]
+                        if len(device_id_parts) >= 2
+                        else device_id_raw
+                    ),
                     "timestamp": timestamp_raw,
                     "door_status": item.get("DoorStatus"),
                     "battery": float(item.get("Battery", 0.0)),
@@ -60,7 +67,9 @@ def format_all_door_info(table, device_id: str):
         return formatted_info
 
     except (IndexError, ValueError, AttributeError, TypeError) as e:
-        logging.error(f"Error processing door info for device {device_id}: {e}", exc_info=True)
+        logging.error(
+            f"Error processing door info for device {device_id}: {e}", exc_info=True
+        )
         raise ValueError(f"Error processing data: {e}")
 
 
@@ -98,8 +107,27 @@ def add_hodor_device(table, device_name):
 
 
 def store_webhook(table, webhook_url: str, device_name: str = None):
-    """Store a webhook URL in DynamoDB for door state notifications."""
+    """Store a webhook URL in DynamoDB for door state notifications. Upserts by URL to avoid stale duplicates."""
     try:
+        existing = table.scan(
+            FilterExpression=Attr("WebhookURL").eq(webhook_url),
+        )
+        existing_items = existing.get("Items", [])
+
+        if existing_items:
+            existing_item = existing_items[0]
+            table.update_item(
+                Key={"WebhookID": existing_item["WebhookID"]},
+                UpdateExpression="SET #a = :active, DeviceName = :dn",
+                ExpressionAttributeNames={"#a": "Active"},
+                ExpressionAttributeValues={
+                    ":active": True,
+                    ":dn": device_name if device_name else "ALL",
+                },
+            )
+            logger.info(f"Reactivated existing webhook: {webhook_url}")
+            return existing_item
+
         webhook_id = generate_device_id()
         webhook_item = {
             "WebhookID": f"WEBHOOK#{webhook_id}",
@@ -120,8 +148,7 @@ def get_active_webhooks(table, device_name: str = None):
     """Retrieve all active webhooks from DynamoDB."""
     try:
         response = table.scan(
-            FilterExpression="Active = :active",
-            ExpressionAttributeValues={":active": True},
+            FilterExpression=Attr("Active").eq(True),
         )
         webhooks = response.get("Items", [])
 

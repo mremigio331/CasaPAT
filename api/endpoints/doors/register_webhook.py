@@ -3,7 +3,7 @@ import logging
 from fastapi.responses import JSONResponse
 from utils.api_utils import get_dynamodb_table
 from utils.door_utils import store_webhook
-from constants.database import DEVICE_TABLE
+from constants.database import WEBHOOK_TABLE
 from pydantic_models.door_models import RegisterWebhookRequest
 
 logger = logging.getLogger("pat_api")
@@ -17,7 +17,7 @@ router = APIRouter()
 )
 async def register_webhook(
     data: RegisterWebhookRequest,
-    table=Depends(lambda: get_dynamodb_table(DEVICE_TABLE)),
+    table=Depends(lambda: get_dynamodb_table(WEBHOOK_TABLE)),
 ):
     """Register a webhook URL to receive door state updates."""
 

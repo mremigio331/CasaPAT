@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from decimal import Decimal
 import logging
 import json
@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from utils.api_utils import get_dynamodb_table, get_device_info, create_event_id
 from utils.time_utils import get_current_utc_datetime
 from utils.door_utils import trigger_webhooks
-from constants.database import DATA_TABLE, DEVICE_TABLE
+from constants.database import DATA_TABLE, DEVICE_TABLE, WEBHOOK_TABLE
 from constants.door import DOOR_OPTIONS
 from pydantic_models.door_models import AddDoorDeviceData
 from datetime import datetime, timezone
@@ -22,8 +22,10 @@ router = APIRouter()
 )
 async def add_door_data(
     data: AddDoorDeviceData,
+    background_tasks: BackgroundTasks,
     data_table=Depends(lambda: get_dynamodb_table(DATA_TABLE)),
     device_table=Depends(lambda: get_dynamodb_table(DEVICE_TABLE)),
+    webhook_table=Depends(lambda: get_dynamodb_table(WEBHOOK_TABLE)),
 ):
     """Add new door sensor data to DynamoDB."""
     logger.info("Called /doors/add_data endpoint.")
@@ -89,7 +91,6 @@ async def add_door_data(
         data_table.put_item(Item=clean_up_data)
         logger.info("Data added successfully.")
 
-        # Trigger webhooks with the new door state
         door_data = {
             "device_name": data.device_name,
             "device_id": (
@@ -101,7 +102,7 @@ async def add_door_data(
             "door_status": data.door_status,
             "battery": data.battery,
         }
-        trigger_webhooks(device_table, door_data)
+        background_tasks.add_task(trigger_webhooks, webhook_table, door_data)
 
         return JSONResponse(
             content={"message": "Data added successfully"}, status_code=200

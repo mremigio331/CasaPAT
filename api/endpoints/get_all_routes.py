@@ -24,9 +24,7 @@ from endpoints.air import (
     add_air_issue,
 )
 
-from endpoints.admin import (
-    restart_pi
-)
+from endpoints.admin import restart_pi
 
 
 def get_all_routes(app):

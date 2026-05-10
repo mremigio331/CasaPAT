@@ -9,6 +9,10 @@ export class WALL_EAccessory {
     this.apiEndpoint = apiEndpoint;
     this.deviceInfo = deviceInfo;
 
+    this.cachedAirQuality = null;
+    this.cachedPM10 = null;
+    this.cachedPM25 = null;
+
     this.log.info(`Initializing accessory for device: ${device}`);
 
     this.accessory.getService(this.api.hap.Service.AccessoryInformation)
@@ -20,7 +24,12 @@ export class WALL_EAccessory {
                               this.accessory.addService(this.api.hap.Service.AirQualitySensor, 'WALL-E Sensor');
 
     this.airQualityService.getCharacteristic(this.api.hap.Characteristic.AirQuality)
-      .on('get', this.getAirQuality.bind(this));
+      .onGet(() => {
+        if (this.cachedAirQuality === null) {
+          return this.api.hap.Characteristic.AirQuality.UNKNOWN;
+        }
+        return this.cachedAirQuality;
+      });
 
     this.pm10Characteristic = this.airQualityService.getCharacteristic(this.api.hap.Characteristic.PM10Density) ||
                               this.airQualityService.addCharacteristic(this.api.hap.Characteristic.PM10Density);
@@ -28,118 +37,82 @@ export class WALL_EAccessory {
     this.pm25Characteristic = this.airQualityService.getCharacteristic(this.api.hap.Characteristic.PM2_5Density) ||
                               this.airQualityService.addCharacteristic(this.api.hap.Characteristic.PM2_5Density);
 
-    // Set up periodic polling
-    this.pollingInterval = setInterval(this.pollData.bind(this), 300000); // Poll every 5 minutes
+    this.pollInterval = setInterval(() => this.updateState(), 5 * 60 * 1000);
+    this.updateState();
   }
 
   async fetchData() {
-    this.log.debug(`Fetching data for device: ${this.device}`);
+    const url = `${this.apiEndpoint}/air/info/latest?device_name=${this.device}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
     try {
-      const response = await fetch(`${this.apiEndpoint}/air/info/latest?device_name=${this.device}`);
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) {
+        this.log.error(`HTTP error for ${this.device}: status=${response.status} url=${url}`);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      this.log.debug(`Fetched data for device ${this.device}: ${JSON.stringify(data)}`);
       return data.latest_info;
     } catch (error) {
-      this.log.error(`Error fetching data for ${this.device}: ${error}`);
+      if (error.name === 'AbortError') {
+        this.log.error(`Timeout fetching data for ${this.device}: request exceeded 4s (url=${url})`);
+      } else {
+        this.log.error(`Error fetching data for ${this.device}: ${error.message} (url=${url})`);
+      }
       return null;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
-  async getAirQuality(callback) {
+  async updateState() {
+    this.log.debug(`Updating state for device: ${this.device}`);
     const data = await this.fetchData();
-    this.log.debug(`Sensor: ${this.device}, Data: ${JSON.stringify(data)}`);
     if (!data) {
-      this.log.warn(`No data received for device: ${this.device}`);
-      callback(null, this.api.hap.Characteristic.AirQuality.UNKNOWN);
       return;
     }
 
     if (data.staleness) {
-      this.log.warn(`Stale data detected for device: ${this.device}. Data age: ${data.age} seconds.`);
+      this.log.warn(`Stale data for ${this.device}: age=${data.age}s`);
       this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusFault, true);
-      callback(null, this.api.hap.Characteristic.AirQuality.UNKNOWN);
       return;
     }
 
     try {
       const airQuality = this.parseAirQuality(data);
-      this.pm10Characteristic.updateValue(parseFloat(data.PM10));
-      this.pm25Characteristic.updateValue(parseFloat(data.PM25));
+      const pm10 = parseFloat(data.PM10);
+      const pm25 = parseFloat(data.PM25);
+
+      this.cachedAirQuality = airQuality;
+      this.cachedPM10 = pm10;
+      this.cachedPM25 = pm25;
+
+      this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.AirQuality, airQuality);
+      this.pm10Characteristic.updateValue(pm10);
+      this.pm25Characteristic.updateValue(pm25);
       this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusFault, false);
-      callback(null, airQuality);
+
+      this.log.debug(`Updated ${this.device}: quality=${airQuality}, PM10=${pm10}, PM25=${pm25}`);
+
+      if (parseInt(data.code, 10) >= 4) {
+        this.log.warn(`Poor air quality for ${this.device}: code=${data.code}`);
+      }
     } catch (error) {
-      this.log.error(`Error getting air quality: ${error}`);
-      callback(error);
+      this.log.error(`Error updating air quality for ${this.device}: ${error}`);
     }
-}
-
-async pollData() {
-    this.log.debug(`Polling data for device: ${this.device}`);
-    const data = await this.fetchData();
-    if (data) {
-      if (data.staleness) {
-        this.log.warn(`Stale data detected for device: ${this.device}. Data age: ${data.age} seconds.`);
-        this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusFault, true);
-        return;
-      }
-
-      try {
-        const airQuality = this.parseAirQuality(data);
-        this.pm10Characteristic.updateValue(parseFloat(data.PM10));
-        this.pm25Characteristic.updateValue(parseFloat(data.PM25));
-        this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.AirQuality, airQuality);
-        this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusFault, false);
-
-        // Add logging to confirm updates
-        this.log.debug(`Updated PM10 for device ${this.device}: ${data.PM10}`);
-        this.log.debug(`Updated PM25 for device ${this.device}: ${data.PM25}`);
-        this.log.debug(`Updated Air Quality for device ${this.device}: ${airQuality}`);
-
-        // Trigger HomeKit notification if air quality is worse than inferior
-        const airQualityCode = parseInt(data.code, 10);
-        this.log.debug(`Air quality code for device ${this.device}: ${airQualityCode}`);
-
-        if (data.code >= 4) { // Assuming code 4 and 5 are worse than inferior
-          this.triggerHomeKitNotification(airQuality, data);
-        }
-      } catch (error) {
-        this.log.error(`Error updating air quality: ${error}`);
-      }
-    }
-}
+  }
 
   parseAirQuality(data) {
-    const code = data.code;
-    this.log.debug(`Parsing air quality code ${code} for device ${this.device}`);
-
+    const code = parseInt(data.code, 10);
     switch (code) {
-      case 1:
-        this.log.debug(`Air quality for device ${this.device} is EXCELLENT`);
-        return this.api.hap.Characteristic.AirQuality.EXCELLENT;
-      case 2:
-        this.log.debug(`Air quality for device ${this.device} is GOOD`);
-        return this.api.hap.Characteristic.AirQuality.GOOD;
-      case 3:
-        this.log.debug(`Air quality for device ${this.device} is FAIR`);
-        return this.api.hap.Characteristic.AirQuality.FAIR;
-      case 4:
-        this.log.debug(`Air quality for device ${this.device} is INFERIOR`);
-        return this.api.hap.Characteristic.AirQuality.INFERIOR;
-      case 5:
-        this.log.debug(`Air quality for device ${this.device} is POOR`);
-        return this.api.hap.Characteristic.AirQuality.POOR;
+      case 1: return this.api.hap.Characteristic.AirQuality.EXCELLENT;
+      case 2: return this.api.hap.Characteristic.AirQuality.GOOD;
+      case 3: return this.api.hap.Characteristic.AirQuality.FAIR;
+      case 4: return this.api.hap.Characteristic.AirQuality.INFERIOR;
+      case 5: return this.api.hap.Characteristic.AirQuality.POOR;
       default:
         this.log.warn(`Unknown air quality code for device ${this.device}: ${code}`);
         return this.api.hap.Characteristic.AirQuality.UNKNOWN;
     }
-  }
-
-  triggerHomeKitNotification(airQuality, data) {
-    // This method will trigger a HomeKit notification by updating the characteristic value
-    this.airQualityService.updateCharacteristic(this.api.hap.Characteristic.StatusActive, true);
-    this.log.debug(`Triggered HomeKit notification for poor air quality: ${airQuality}`);
   }
 }

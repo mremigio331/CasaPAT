@@ -19,6 +19,7 @@ export class CasaPAT {
         this.log.debug('DidFinishLaunching');
         this.startWebhookServer();
         this.discoverDevices();
+        this.startWebhookReregistration();
       });
     } else {
       this.log.error('API not available');
@@ -170,6 +171,20 @@ export class CasaPAT {
     } catch (error) {
       this.log.error(`Error registering webhook for device ${deviceName}: ${error}`);
     }
+  }
+
+  startWebhookReregistration() {
+    const intervalMs = 5 * 60 * 1000;
+    setInterval(() => {
+      const doorAccessories = this.accessories.filter(acc => acc.context.type === 'doors');
+      if (doorAccessories.length === 0) {
+        return;
+      }
+      this.log.debug(`Re-registering webhooks for ${doorAccessories.length} door accessory(s)`);
+      for (const acc of doorAccessories) {
+        this.registerDoorWebhook(acc.context.device.DeviceName);
+      }
+    }, intervalMs);
   }
 
   configureAccessory(accessory) {
