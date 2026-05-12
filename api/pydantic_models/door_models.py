@@ -31,3 +31,10 @@ class WebhookPayload(BaseModel):
     timestamp: str
     door_status: str
     battery: float
+
+
+class UpdateDeviceRequest(BaseModel):
+    device_name: str = Field(..., example="test_device")
+    new_device_name: Optional[str] = Field(None, example="new_device_name")
+    device_manufacturer: Optional[str] = Field(None, example="Fuffly Slippers? Devices")
+    device_model: Optional[str] = Field(None, example="Hodor Sensor")

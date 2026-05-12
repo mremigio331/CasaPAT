@@ -34,6 +34,7 @@ const NavBar = ({ title = 'CasaPAT Dashboard' }) => {
     { label: 'Home', path: '/', icon: <HomeIcon /> },
     { label: 'Air Quality History', path: '/air-quality-history' },
     { label: 'Door History', path: '/door-history' },
+    { label: 'Devices', path: '/settings' },
   ];
 
   const handleDrawerToggle = () => {

@@ -8,6 +8,7 @@ import NavBar from './components/NavBar';
 import HomePage from './pages/HomePage';
 import AirQualityHistoryPage from './pages/AirQualityHistoryPage';
 import DoorHistoryPage from './pages/DoorHistoryPage';
+import SystemSettings from './pages/SystemSettings';
 import theme from './theme';
 
 // Create QueryClient with retry and refetch configuration
@@ -36,6 +37,7 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/air-quality-history" element={<AirQualityHistoryPage />} />
               <Route path="/door-history" element={<DoorHistoryPage />} />
+              <Route path="/settings" element={<SystemSettings />} />
             </Routes>
           </BrowserRouter>
         </QueryClientProvider>

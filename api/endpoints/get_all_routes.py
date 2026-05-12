@@ -4,6 +4,7 @@ from endpoints.pat import (
     get_all_data,
     delete_device,
     delete_all_data,
+    update_device,
 )
 from endpoints.doors import (
     add_door_data,
@@ -38,6 +39,8 @@ def get_all_routes(app):
     # Delete
     app.include_router(delete_all_data.router, prefix="/pat", tags=["General"])
     app.include_router(delete_device.router, prefix="/pat", tags=["General"])
+    # Put
+    app.include_router(update_device.router, prefix="/pat", tags=["General"])
 
     # Admin
     # Post
